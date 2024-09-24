@@ -16,5 +16,12 @@ namespace IngestorConsole
 
         [Option('a', "auth", Required = false, HelpText = "Set authentication method.")]
         public string Authentication { get; set; } = string.Empty;
-   }
+
+        public override string ToString()
+        {
+            return $@"
+Source:  {Source}
+Authentication:  {Authentication}";
+        }
+    }
 }

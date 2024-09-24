@@ -1,4 +1,6 @@
-﻿using System;
+﻿using CommandLine;
+using CommandLine.Text;
+using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics;
@@ -36,9 +38,90 @@ namespace IngestorConsole
             Console.WriteLine($"Kusto Ingestor Console {AssemblyVersion}");
             Console.WriteLine();
 
-            await Task.CompletedTask;
+            try
+            {
+                //  Use CommandLineParser NuGet package to parse command line
+                //  See https://github.com/commandlineparser/commandline
+                var parser = new Parser(with =>
+                {
+                    with.HelpWriter = null;
+                });
+                var options = parser.ParseArguments<CommandLineOptions>(args);
 
-            return 0;
+                await options
+                    .WithNotParsed(errors => HandleParseError(options, errors))
+                    .WithParsedAsync(RunOptionsAsync);
+
+                return options.Tag == ParserResultType.Parsed
+                    ? 0
+                    : 1;
+            }
+            catch (Exception ex)
+            {
+                DisplayGenericException(ex);
+
+                return 1;
+            }
+        }
+
+        private static void DisplayGenericException(Exception ex, string tab = "")
+        {
+            Console.Error.WriteLine(
+                $"{tab}Exception encountered:  {ex.GetType().FullName} ; {ex.Message}");
+            Console.Error.WriteLine($"{tab}Stack trace:  {ex.StackTrace}");
+            if (ex.InnerException != null)
+            {
+                DisplayGenericException(ex.InnerException, tab + "  ");
+            }
+        }
+
+        private static async Task RunOptionsAsync(CommandLineOptions options)
+        {
+            var cancellationTokenSource = new CancellationTokenSource();
+            var taskCompletionSource = new TaskCompletionSource();
+
+            AppDomain.CurrentDomain.ProcessExit += (e, s) =>
+            {
+                Trace.TraceInformation("Exiting process...");
+                cancellationTokenSource.Cancel();
+                taskCompletionSource.Task.Wait();
+            };
+            try
+            {
+                await using (var orchestration = await MainOrchestration.CreateAsync(
+                    options,
+                    cancellationTokenSource.Token))
+                {
+                    Trace.WriteLine("");
+                    Trace.WriteLine("Parameterization:");
+                    Trace.WriteLine("");
+                    Trace.WriteLine(options.ToString());
+                    Trace.WriteLine("");
+                    Trace.WriteLine("Processing...");
+                    Trace.WriteLine("");
+                    await orchestration.ProcessAsync(cancellationTokenSource.Token);
+                }
+            }
+            finally
+            {
+                taskCompletionSource.SetResult();
+            }
+        }
+
+        private static void HandleParseError(
+            ParserResult<CommandLineOptions> result,
+            IEnumerable<Error> errors)
+        {
+            var helpText = HelpText.AutoBuild(result, h =>
+            {
+                h.AutoVersion = false;
+                h.Copyright = string.Empty;
+                h.Heading = string.Empty;
+
+                return HelpText.DefaultParsingErrorsHandler(result, h);
+            }, example => example);
+
+            Console.WriteLine(helpText);
         }
     }
 }
