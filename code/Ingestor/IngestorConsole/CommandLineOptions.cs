@@ -14,7 +14,7 @@ namespace IngestorConsole
             HelpText = "Set the sample file to generate from")]
         public string Source { get; set; } = string.Empty;
 
-        [Option('a', "auth", Required = false, HelpText = "Set authentication method.")]
+        [Option('a', "auth", Required = false, HelpText = "Set authentication method:  'AzCli' or 'System'")]
         public string Authentication { get; set; } = string.Empty;
 
         public override string ToString()

@@ -18,9 +18,9 @@ namespace IngestorConsole
         }
         #endregion
 
-        ValueTask IAsyncDisposable.DisposeAsync()
+        async ValueTask IAsyncDisposable.DisposeAsync()
         {
-            throw new NotImplementedException();
+            await Task.CompletedTask;
         }
 
         public async Task ProcessAsync(CancellationToken token)
