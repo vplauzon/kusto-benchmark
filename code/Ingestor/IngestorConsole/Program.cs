@@ -33,7 +33,7 @@ namespace IngestorConsole
             CultureInfo.CurrentUICulture = CultureInfo.GetCultureInfo("en-US");
 
             Console.WriteLine();
-            Console.WriteLine($"Kusto Ingestor Console ");
+            Console.WriteLine($"Kusto Ingestor Console {AssemblyVersion}");
             Console.WriteLine();
 
             await Task.CompletedTask;
