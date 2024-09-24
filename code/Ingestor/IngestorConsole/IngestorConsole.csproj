@@ -1,0 +1,21 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Version>0.0.1.0</Version>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <TreatWarningsAsErrors>True</TreatWarningsAsErrors>
+    <!--	Important to avoid the trimming warning hell ; since we automate-test everything, we do not need static analysis	-->
+    <ILLinkTreatWarningsAsErrors>false</ILLinkTreatWarningsAsErrors>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Azure.Storage.Files.DataLake" Version="12.20.0" />
+    <PackageReference Include="CommandLineParser" Version="2.9.1" />
+    <PackageReference Include="Microsoft.Azure.Kusto.Ingest" Version="12.2.5" />
+    <PackageReference Include="Polly" Version="8.4.1" />
+  </ItemGroup>
+
+</Project>
