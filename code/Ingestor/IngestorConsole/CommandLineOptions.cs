@@ -28,6 +28,13 @@ namespace IngestorConsole
             HelpText = "Set the template table")]
         public string TemplateTable { get; set; } = string.Empty;
 
+        [Option(
+            's',
+            "blob-size",
+            Required = false,
+            HelpText = "Set the blob size, in compressed MBs")]
+        public int BlobSize { get; set; } = 10;
+
         [Option('a', "auth", Required = false, HelpText = "Set authentication method:  'AzCli' or 'System'")]
         public string Authentication { get; set; } = string.Empty;
 

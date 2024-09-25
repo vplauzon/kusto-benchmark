@@ -3,6 +3,7 @@ using Kusto.Cloud.Platform.Data;
 using Kusto.Data;
 using Kusto.Data.Common;
 using Kusto.Data.Net.Client;
+using Kusto.Ingest;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -17,6 +18,7 @@ namespace IngestorConsole
             new ClientRequestProperties();
 
         private readonly ICslQueryProvider _queryProvider;
+        private readonly IKustoQueuedIngestClient _ingestProvider;
         private readonly string _dbName;
 
         public KustoClient(string dbUri, TokenCredential credential)
@@ -27,8 +29,10 @@ namespace IngestorConsole
             var builder = new KustoConnectionStringBuilder(clusterUri.ToString())
                 .WithAadAzureTokenCredentialsAuthentication(credential);
             var queryProvider = KustoClientFactory.CreateCslQueryProvider(builder);
+            var ingestProvider = KustoIngestFactory.CreateQueuedIngestClient(builder);
 
             _queryProvider = queryProvider;
+            _ingestProvider = ingestProvider;
             _dbName = dbName;
         }
 
@@ -44,6 +48,15 @@ namespace IngestorConsole
             var template = (string)reader.ToDataSet().Tables[0].Rows[0][0];
 
             return template;
+        }
+
+        public async Task IngestAsync(string tableName, Stream stream, CancellationToken ct)
+        {
+            var properties = new KustoIngestionProperties(_dbName, tableName);
+
+            properties.Format = DataSourceFormat.multijson;
+         
+            await _ingestProvider.IngestFromStreamAsync(stream, properties);
         }
     }
 }
