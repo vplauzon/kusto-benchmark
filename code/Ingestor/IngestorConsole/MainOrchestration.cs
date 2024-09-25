@@ -22,6 +22,7 @@ namespace IngestorConsole
             var credentials = CreateCredentials(options.Authentication);
             var engineClient = new EngineClient(options.DbUri, credentials);
             var template = await engineClient.FetchTemplateAsync(options.TemplateTable, ct);
+            var generator = await EventGenerator.CreateAsync(template, engineClient, ct);
 
             throw new NotImplementedException();
         }
