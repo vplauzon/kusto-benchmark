@@ -1,0 +1,75 @@
+name:  Ingestor Continuous Build
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'code/**'
+    branches:
+      - main
+
+# permissions:
+#   id-token: write
+#   contents: read
+
+jobs:
+  main:
+    runs-on: ubuntu-latest
+    environment:  dev
+    
+    steps:
+    - uses: actions/checkout@v2
+    - name: Setup .NET Core
+      uses: actions/setup-dotnet@v1
+      with:
+        dotnet-version: 8.x
+
+    # See https://docs.microsoft.com/en-us/dotnet/core/tools/dotnet-restore
+    - name: Install dependencies
+      run: dotnet restore code
+    - name: Patch version
+      id:  patch-version
+      run: python3 deployment/patch-version.py code/IngestorConsole/IngestorConsole.csproj ${{ github.run_number }}
+    - name:  Output full version
+      shell:  bash
+      run:  |
+        echo "Full version:  ${{ steps.patch-version.outputs.full-version }}"
+    # See https://docs.microsoft.com/en-us/dotnet/core/tools/dotnet-build
+    - name: .NET Build Console
+      run: dotnet build code/IngestorConsole --configuration Release --no-restore
+    - name: Copy binaries
+      run: |
+        mkdir bin
+        cp -r code/KustoPreForgeConsole/bin/Release/net*/* bin
+
+    # # Using the user MI as exposed in https://yourazurecoach.com/2022/12/29/use-github-actions-with-user-assigned-managed-identity/
+    # - name: Log into Azure
+    #   uses: azure/login@v1
+    #   with:
+    #     client-id: ${{ secrets.AZURE_CLIENT_ID }}
+    #     tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+    #     subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+    
+    # - name: Retrieve container app
+    #   run: |
+    #     containerApp=$(az containerapp list -g ${{ secrets.RESOURCE_GROUP }} --query "[0].name" -o tsv)
+    #     echo "Container App:  $containerApp"
+    #     echo "containerApp=$containerApp" >> $GITHUB_ENV
+
+
+    # # See https://learn.microsoft.com/en-us/azure/container-registry/container-registry-quickstart-task-cli
+    # - name:  Docker Build / Push container
+    #   run:  |
+    #     az acr build --image "kusto-pre-forge/dev:${{ steps.patch-version.outputs.full-version }}" \
+    #       --registry ${{ secrets.REGISTRY_NAME }} \
+    #       --file deployment/docker/Dockerfile bin
+    # - name:  Docker tag latest
+    #   run:  |
+    #     az acr import --source "kusto-pre-forge/dev:${{ steps.patch-version.outputs.full-version }}" \
+    #       --image "kusto-pre-forge/dev:latest" \
+    #       --registry ${{ secrets.REGISTRY_NAME }} --name ${{ secrets.REGISTRY_NAME }} \
+    #       --force
+    # - name:  Update revision in Container App
+    #   run:  |
+    #     az containerapp revision copy -g ${{ secrets.RESOURCE_GROUP }} -n $containerApp \
+    #       --image "${{ secrets.REGISTRY_NAME }}.azurecr.io/kusto-pre-forge/dev:${{ steps.patch-version.outputs.full-version }}"
