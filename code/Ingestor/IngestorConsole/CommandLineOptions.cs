@@ -8,11 +8,25 @@ namespace IngestorConsole
     public class CommandLineOptions
     {
         [Option(
-            's',
-            "sample",
-            Required = false,
-            HelpText = "Set the sample file to generate from")]
-        public string Source { get; set; } = string.Empty;
+            'd',
+            "db-uri",
+            Required = true,
+            HelpText = "Set the db URI, e.g. https://mycluster.westus.kusto.windows.net/mydb/")]
+        public string DbUri { get; set; } = string.Empty;
+
+        [Option(
+            'i',
+            "ingestion-table",
+            Required = true,
+            HelpText = "Set the ingestion table")]
+        public string IngestionTable { get; set; } = string.Empty;
+
+        [Option(
+            't',
+            "template-table",
+            Required = true,
+            HelpText = "Set the template table")]
+        public string TemplateTable { get; set; } = string.Empty;
 
         [Option('a', "auth", Required = false, HelpText = "Set authentication method:  'AzCli' or 'System'")]
         public string Authentication { get; set; } = string.Empty;
@@ -20,7 +34,9 @@ namespace IngestorConsole
         public override string ToString()
         {
             return $@"
-Source:  {Source}
+DB Uri:  {DbUri}
+Ingestion table:  {IngestionTable}
+Template table:  {TemplateTable}
 Authentication:  {Authentication}";
         }
     }

@@ -17,13 +17,13 @@ namespace IngestorConsole
 
         public static async Task<MainOrchestration> CreateAsync(
             CommandLineOptions options,
-            CancellationToken token)
+            CancellationToken ct)
         {
             var credentials = CreateCredentials(options.Authentication);
-            var blobClient = CreateBlobClient(options.Source, credentials);
-            var sampleText = await LoadBlobAsync(blobClient);
+            var engineClient = new EngineClient(options.DbUri, credentials);
+            var template = await engineClient.FetchTemplateAsync(options.TemplateTable, ct);
 
-            return new MainOrchestration(sampleText);
+            throw new NotImplementedException();
         }
 
         private static TokenCredential CreateCredentials(string authentication)
@@ -35,28 +35,6 @@ namespace IngestorConsole
             else
             {
                 throw new NotImplementedException();
-            }
-        }
-
-        private static BlobClient CreateBlobClient(string source, TokenCredential credentials)
-        {
-            var sourceUri = new Uri(source);
-            var segments = sourceUri.Segments;
-            var containerUri = new Uri($"{sourceUri.Scheme}://{sourceUri.Host}/{segments[1]}");
-            var blobName = string.Join("/", segments.Skip(2));
-            var containerClient = new BlobContainerClient(containerUri, credentials);
-            var blobClient = containerClient.GetBlobClient(blobName);
-
-            return blobClient;
-        }
-
-        private static async Task<string> LoadBlobAsync(BlobClient blobClient)
-        {
-            var download = await blobClient.DownloadAsync();
-
-            using (var reader = new StreamReader(download.Value.Content))
-            {
-                return await reader.ReadToEndAsync();
             }
         }
         #endregion
