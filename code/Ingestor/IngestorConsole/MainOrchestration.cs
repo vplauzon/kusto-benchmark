@@ -7,12 +7,14 @@ namespace IngestorConsole
 {
     internal class MainOrchestration : IAsyncDisposable
     {
-        private readonly string _sampleText;
+        private readonly EventGenerator _generator;
+        private readonly KustoClient _kustoClient;
 
         #region Constructors
-        private MainOrchestration(string sampleText)
+        private MainOrchestration(EventGenerator generator, KustoClient kustoClient)
         {
-            _sampleText = sampleText;
+            _generator = generator;
+            _kustoClient = kustoClient;
         }
 
         public static async Task<MainOrchestration> CreateAsync(
@@ -20,11 +22,11 @@ namespace IngestorConsole
             CancellationToken ct)
         {
             var credentials = CreateCredentials(options.Authentication);
-            var engineClient = new EngineClient(options.DbUri, credentials);
-            var template = await engineClient.FetchTemplateAsync(options.TemplateTable, ct);
-            var generator = await EventGenerator.CreateAsync(template, engineClient, ct);
+            var kustoClient = new KustoClient(options.DbUri, credentials);
+            var template = await kustoClient.FetchTemplateAsync(options.TemplateTable, ct);
+            var generator = await EventGenerator.CreateAsync(template, kustoClient, ct);
 
-            throw new NotImplementedException();
+            return new MainOrchestration(generator, kustoClient);
         }
 
         private static TokenCredential CreateCredentials(string authentication)

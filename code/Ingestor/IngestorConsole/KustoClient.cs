@@ -11,7 +11,7 @@ using System.Threading.Tasks;
 
 namespace IngestorConsole
 {
-    internal class EngineClient
+    internal class KustoClient
     {
         private static readonly ClientRequestProperties DEFAULT_PROPERTIES =
             new ClientRequestProperties();
@@ -19,7 +19,7 @@ namespace IngestorConsole
         private readonly ICslQueryProvider _queryProvider;
         private readonly string _dbName;
 
-        public EngineClient(string dbUri, TokenCredential credential)
+        public KustoClient(string dbUri, TokenCredential credential)
         {
             var uri = new Uri(dbUri);
             var dbName = uri.Segments[1];

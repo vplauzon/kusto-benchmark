@@ -14,7 +14,7 @@ namespace IngestorConsole
 
         internal static async Task<EventGenerator> CreateAsync(
             string template,
-            EngineClient engineClient,
+            KustoClient engineClient,
             CancellationToken ct)
         {
             await Task.CompletedTask;
