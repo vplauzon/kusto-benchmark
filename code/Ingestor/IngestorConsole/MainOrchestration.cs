@@ -72,25 +72,25 @@ namespace IngestorConsole
             {
                 using (var stream = GenerateBlob(ct))
                 {
+                    stream.Position = 0;
+
                     await _kustoClient.IngestAsync(_ingestTableName, stream, ct);
                 }
             }
         }
 
-        private Stream GenerateBlob(CancellationToken ct)
+        private MemoryStream GenerateBlob(CancellationToken ct)
         {
             var compressedStream = new MemoryStream();
 
-            using (var uncompressedStream = new GZipStream(compressedStream, CompressionLevel.Fastest))
-            using (var writer = new StreamWriter(uncompressedStream))
+            using (var compressingStream =
+                new GZipStream(compressedStream, CompressionLevel.Fastest, true))
+            using (var writer = new StreamWriter(compressingStream))
             {
                 while (compressedStream.Length < _blobSizeInBytes && !ct.IsCancellationRequested)
                 {
                     _generator.GenerateEvent(writer);
                 }
-                writer.Flush();
-                uncompressedStream.Flush();
-                compressedStream.Position = 0;
 
                 return compressedStream;
             }

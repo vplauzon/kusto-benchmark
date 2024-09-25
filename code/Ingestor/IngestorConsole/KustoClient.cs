@@ -55,8 +55,14 @@ namespace IngestorConsole
             var properties = new KustoIngestionProperties(_dbName, tableName);
 
             properties.Format = DataSourceFormat.multijson;
-         
-            await _ingestProvider.IngestFromStreamAsync(stream, properties);
+
+            await _ingestProvider.IngestFromStreamAsync(
+                stream,
+                properties,
+                new StreamSourceOptions
+                {
+                    CompressionType = DataSourceCompressionType.GZip
+                });
         }
     }
 }
