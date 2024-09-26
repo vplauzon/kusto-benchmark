@@ -49,13 +49,14 @@ namespace IngestorConsole
 
         private static TokenCredential CreateCredentials(string authentication)
         {
-            if (string.IsNullOrWhiteSpace(authentication))
+            if (string.IsNullOrWhiteSpace(authentication)
+                || string.Compare(authentication.Trim(), "azcli", true) == 0)
             {
                 return new DefaultAzureCredential();
             }
             else
             {
-                throw new NotImplementedException();
+                return new ManagedIdentityCredential();
             }
         }
         #endregion

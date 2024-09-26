@@ -7,8 +7,6 @@ WORKDIR /work
 #	Copy package
 COPY . .
 
-#	Define environment variables
-ENV TODO ""
-
 #	Run console app
-CMD ["dotnet", "IngestorConsole.dll"]
+ENTRYPOINT ["dotnet", "IngestorConsole.dll"]
+CMD ["-d", "$dbUri", "-i", "$ingestionTable", "-t", "$templateTable", "-s", "$blobSize", "-a", "$authentication"]
