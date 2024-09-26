@@ -1,7 +1,6 @@
 ﻿
 using Azure.Core;
 using Azure.Identity;
-using Azure.Storage.Blobs;
 using System.IO.Compression;
 
 namespace IngestorConsole
