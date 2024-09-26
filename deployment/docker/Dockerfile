@@ -8,5 +8,4 @@ WORKDIR /work
 COPY . .
 
 #	Run console app
-ENTRYPOINT ["dotnet", "IngestorConsole.dll"]
-CMD /bin/bash -c 'dotnet IngestorConsole.dll -d "$dbUri" -i "$ingestionTable" -t "$templateTable" -s "$blobSize" -a "$authentication"'
+CMD ["sh", "-c", "dotnet", "IngestorConsole.dll", "-d", "$dbUri", "-i", "$ingestionTable", "-t", "$templateTable", "-s", "$blobSize", "-a", "$authentication"]
