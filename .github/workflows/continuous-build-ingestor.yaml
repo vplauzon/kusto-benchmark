@@ -52,7 +52,7 @@ jobs:
     
     - name: Retrieve container registry
       run: |
-        registry=$(az arc list -g ${{ secrets.RESOURCE_GROUP }} --query "[0].name" -o tsv)
+        registry=$(az acr list -g ${{ secrets.RESOURCE_GROUP }} --query "[0].name" -o tsv)
         echo "Registry:  $registry"
         echo "registry=$registry" >> $GITHUB_ENV
 
