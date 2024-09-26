@@ -37,6 +37,7 @@ namespace IngestorConsole
             Console.WriteLine();
             Console.WriteLine($"Kusto Ingestor Console {AssemblyVersion}");
             Console.WriteLine();
+            Console.WriteLine($"Command line:  {string.Join(" ", args)}");
 
             try
             {
