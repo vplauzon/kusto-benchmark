@@ -54,11 +54,11 @@ jobs:
     - name:  Docker Build / Push container
       run:  |
         az acr build --image "ingestor/dev:${{ steps.patch-version.outputs.full-version }}" \
-          --registry ${{ secrets.REGISTRY_NAME }} \
+          --registry ${{ env.REGISTRY_NAME }} \
           --file deployment/docker/Dockerfile bin
     - name:  Docker tag latest
       run:  |
         az acr import --source "ingestor/dev:${{ steps.patch-version.outputs.full-version }}" \
           --image "ingestor/dev:latest" \
-          --registry ${{ secrets.REGISTRY_NAME }} --name ${{ secrets.REGISTRY_NAME }} \
+          --registry ${{ env.REGISTRY_NAME }} --name ${{ env.REGISTRY_NAME }} \
           --force
