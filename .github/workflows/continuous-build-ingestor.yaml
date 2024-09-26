@@ -56,15 +56,15 @@ jobs:
         echo "Registry:  $registry"
         echo "registry=$registry" >> $GITHUB_ENV
 
-    # # See https://learn.microsoft.com/en-us/azure/container-registry/container-registry-quickstart-task-cli
-    # - name:  Docker Build / Push container
-    #   run:  |
-    #     az acr build --image "kusto-pre-forge/dev:${{ steps.patch-version.outputs.full-version }}" \
-    #       --registry ${{ secrets.REGISTRY_NAME }} \
-    #       --file deployment/docker/Dockerfile bin
-    # - name:  Docker tag latest
-    #   run:  |
-    #     az acr import --source "kusto-pre-forge/dev:${{ steps.patch-version.outputs.full-version }}" \
-    #       --image "kusto-pre-forge/dev:latest" \
-    #       --registry ${{ secrets.REGISTRY_NAME }} --name ${{ secrets.REGISTRY_NAME }} \
-    #       --force
+    # See https://learn.microsoft.com/en-us/azure/container-registry/container-registry-quickstart-task-cli
+    - name:  Docker Build / Push container
+      run:  |
+        az acr build --image "ingestor/dev:${{ steps.patch-version.outputs.full-version }}" \
+          --registry $registry \
+          --file deployment/docker/Dockerfile bin
+    - name:  Docker tag latest
+      run:  |
+        az acr import --source "ingestor/dev:${{ steps.patch-version.outputs.full-version }}" \
+          --image "ingestor/dev:latest" \
+          --registry $registry --name $registry \
+          --force
