@@ -50,12 +50,11 @@ jobs:
         tenant-id: ${{ secrets.AZURE_TENANT_ID }}
         subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
     
-    - name: Retrieve container app
+    - name: Retrieve container registry
       run: |
-        containerApp=$(az containerapp list -g ${{ secrets.RESOURCE_GROUP }} --query "[0].name" -o tsv)
-        echo "Container App:  $containerApp"
-        echo "containerApp=$containerApp" >> $GITHUB_ENV
-
+        registry=$(az arc list -g ${{ secrets.RESOURCE_GROUP }} --query "[0].name" -o tsv)
+        echo "Registry:  $registry"
+        echo "registry=$registry" >> $GITHUB_ENV
 
     # # See https://learn.microsoft.com/en-us/azure/container-registry/container-registry-quickstart-task-cli
     # - name:  Docker Build / Push container
@@ -69,7 +68,3 @@ jobs:
     #       --image "kusto-pre-forge/dev:latest" \
     #       --registry ${{ secrets.REGISTRY_NAME }} --name ${{ secrets.REGISTRY_NAME }} \
     #       --force
-    # - name:  Update revision in Container App
-    #   run:  |
-    #     az containerapp revision copy -g ${{ secrets.RESOURCE_GROUP }} -n $containerApp \
-    #       --image "${{ secrets.REGISTRY_NAME }}.azurecr.io/kusto-pre-forge/dev:${{ steps.patch-version.outputs.full-version }}"
