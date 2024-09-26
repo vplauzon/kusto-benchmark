@@ -74,6 +74,7 @@ namespace IngestorConsole
                     stream.Position = 0;
 
                     await _kustoClient.IngestAsync(_ingestTableName, stream, ct);
+                    Console.WriteLine($"Writing {stream.Length} bytes");
                 }
             }
         }
