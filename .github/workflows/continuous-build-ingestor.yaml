@@ -50,11 +50,11 @@ jobs:
         tenant-id: ${{ secrets.AZURE_TENANT_ID }}
         subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
     
-    # - name: Retrieve container app
-    #   run: |
-    #     containerApp=$(az containerapp list -g ${{ secrets.RESOURCE_GROUP }} --query "[0].name" -o tsv)
-    #     echo "Container App:  $containerApp"
-    #     echo "containerApp=$containerApp" >> $GITHUB_ENV
+    - name: Retrieve container app
+      run: |
+        containerApp=$(az containerapp list -g ${{ secrets.RESOURCE_GROUP }} --query "[0].name" -o tsv)
+        echo "Container App:  $containerApp"
+        echo "containerApp=$containerApp" >> $GITHUB_ENV
 
 
     # # See https://learn.microsoft.com/en-us/azure/container-registry/container-registry-quickstart-task-cli
