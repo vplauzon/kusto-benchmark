@@ -2,6 +2,7 @@
 using Kusto.Cloud.Platform.Data;
 using Kusto.Data;
 using Kusto.Data.Common;
+using Kusto.Data.Ingestion;
 using Kusto.Data.Net.Client;
 using Kusto.Ingest;
 using System;
@@ -21,8 +22,18 @@ namespace IngestorConsole
         private readonly ICslQueryProvider _queryProvider;
         private readonly IKustoQueuedIngestClient _ingestProvider;
         private readonly string _dbName;
+        private readonly string _ingestionTable;
+        private readonly DataSourceFormat _ingestionFormat;
+        private readonly Kusto.Data.Ingestion.IngestionMappingKind _ingestionMappingKind;
+        private readonly string _ingestionMapping;
 
-        public KustoClient(string dbUri, TokenCredential credential)
+        #region Constructors
+        public KustoClient(
+            string dbUri,
+            string ingestionTable,
+            string ingestionFormat,
+            string ingestionMapping,
+            TokenCredential credential)
         {
             var uri = new Uri(dbUri);
             var dbName = uri.Segments[1];
@@ -35,7 +46,37 @@ namespace IngestorConsole
             _queryProvider = queryProvider;
             _ingestProvider = ingestProvider;
             _dbName = dbName;
+            _ingestionTable = ingestionTable;
+            _ingestionFormat = ParseFormat(ingestionFormat);
+            _ingestionMappingKind = MapFormatToKind(_ingestionFormat);
+            _ingestionMapping = ingestionMapping;
         }
+
+        private static DataSourceFormat ParseFormat(string ingestionFormat)
+        {
+            if (Enum.TryParse<DataSourceFormat>(ingestionFormat, true, out var parsedFormat))
+            {
+                return parsedFormat;
+            }
+            else
+            {
+                throw new FormatException($"Can't parse ingestion format '{ingestionFormat}'");
+            }
+        }
+
+        private static IngestionMappingKind MapFormatToKind(DataSourceFormat ingestionFormat)
+        {
+            switch (ingestionFormat)
+            {
+                case DataSourceFormat.json:
+                case DataSourceFormat.multijson:
+                    return IngestionMappingKind.Json;
+
+                default:
+                    throw new NotImplementedException($"Format '{ingestionFormat}'");
+            }
+        }
+        #endregion
 
         public async Task<string> FetchTemplateAsync(
             string templateTableName,
@@ -51,11 +92,19 @@ namespace IngestorConsole
             return template;
         }
 
-        public async Task IngestAsync(string tableName, Stream stream, CancellationToken ct)
+        public async Task IngestAsync(Stream stream, CancellationToken ct)
         {
-            var properties = new KustoIngestionProperties(_dbName, tableName);
+            var properties = new KustoIngestionProperties(_dbName, _ingestionTable);
 
-            properties.Format = DataSourceFormat.multijson;
+            if (!string.IsNullOrWhiteSpace(_ingestionMapping))
+            {
+                properties.IngestionMapping = new IngestionMapping
+                {
+                    IngestionMappingKind = _ingestionMappingKind,
+                    IngestionMappingReference = _ingestionMapping
+                };
+            }
+            properties.Format = _ingestionFormat;
 
             await _ingestProvider.IngestFromStreamAsync(
                 stream,

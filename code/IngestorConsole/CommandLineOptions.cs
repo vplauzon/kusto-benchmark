@@ -28,6 +28,20 @@ namespace IngestorConsole
         public string IngestionTable { get; set; } = string.Empty;
 
         [Option(
+            'm',
+            "ingestion-mapping",
+            Required = false,
+            HelpText = "Set the ingestion mapping")]
+        public string IngestionMapping { get; set; } = string.Empty;
+
+        [Option(
+            'f',
+            "ingestion-format",
+            Required = false,
+            HelpText = "Set the ingestion format")]
+        public string IngestionFormat { get; set; } = "multijson";
+
+        [Option(
             't',
             "template-table",
             Required = true,

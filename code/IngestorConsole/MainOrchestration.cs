@@ -10,14 +10,12 @@ namespace IngestorConsole
     {
         private readonly EventGenerator _generator;
         private readonly KustoClient _kustoClient;
-        private readonly string _ingestTableName;
         private readonly int _blobSizeInBytes;
 
         #region Constructors
         private MainOrchestration(
             EventGenerator generator,
             KustoClient kustoClient,
-            string ingestTableName,
             int blobSizeInBytes)
         {
             if (blobSizeInBytes < 1000000)
@@ -28,7 +26,6 @@ namespace IngestorConsole
             }
             _generator = generator;
             _kustoClient = kustoClient;
-            _ingestTableName = ingestTableName;
             _blobSizeInBytes = blobSizeInBytes;
         }
 
@@ -37,14 +34,18 @@ namespace IngestorConsole
             CancellationToken ct)
         {
             var credentials = CreateCredentials(options.Authentication);
-            var kustoClient = new KustoClient(options.DbUri, credentials);
+            var kustoClient = new KustoClient(
+                options.DbUri,
+                options.IngestionTable,
+                options.IngestionFormat,
+                options.IngestionMapping,
+                credentials);
             var template = await kustoClient.FetchTemplateAsync(options.TemplateTable, ct);
             var generator = await EventGenerator.CreateAsync(template, kustoClient, ct);
 
             return new MainOrchestration(
                 generator,
                 kustoClient,
-                options.IngestionTable,
                 options.BlobSize * 1000000);
         }
 
@@ -75,7 +76,7 @@ namespace IngestorConsole
                 {
                     stream.Position = 0;
 
-                    await _kustoClient.IngestAsync(_ingestTableName, stream, ct);
+                    await _kustoClient.IngestAsync(stream, ct);
                     Trace.WriteLine($"Writing {stream.Length} bytes");
                 }
             }
