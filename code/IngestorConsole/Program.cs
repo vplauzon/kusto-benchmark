@@ -33,11 +33,6 @@ namespace IngestorConsole
         {
             CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo("en-US");
             CultureInfo.CurrentUICulture = CultureInfo.GetCultureInfo("en-US");
-            //  Ensure traces go to console even in a Docker container
-            Trace.Listeners.Add(new ConsoleTraceListener
-            {
-                Filter = new EventTypeFilter(SourceLevels.Warning)
-            });
 
             Console.WriteLine();
             Console.WriteLine($"Kusto Ingestor Console {AssemblyVersion}");
@@ -86,6 +81,12 @@ namespace IngestorConsole
             var cancellationTokenSource = new CancellationTokenSource();
             var taskCompletionSource = new TaskCompletionSource();
 
+            //  Ensure traces go to console even in a Docker container
+            Trace.Listeners.Add(new ConsoleTraceListener
+            {
+                Filter = new EventTypeFilter(
+                    options.Verbose ? SourceLevels.All : SourceLevels.Warning)
+            });
             AppDomain.CurrentDomain.ProcessExit += (e, s) =>
             {
                 Trace.TraceInformation("Exiting process...");

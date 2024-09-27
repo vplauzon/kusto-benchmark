@@ -53,7 +53,6 @@ namespace IngestorConsole
 
         public async Task IngestAsync(string tableName, Stream stream, CancellationToken ct)
         {
-            Trace.WriteLine("Before ingest");
             var properties = new KustoIngestionProperties(_dbName, tableName);
 
             properties.Format = DataSourceFormat.multijson;

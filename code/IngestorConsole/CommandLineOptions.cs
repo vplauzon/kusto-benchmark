@@ -7,6 +7,9 @@ namespace IngestorConsole
 {
     public class CommandLineOptions
     {
+        [Option('v', "verbose", Required = false, HelpText = "Set output to verbose messages.")]
+        public bool Verbose { get; set; } = false;
+
         [Option(
             'd',
             "db-uri",
