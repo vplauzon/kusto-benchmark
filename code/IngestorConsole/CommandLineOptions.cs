@@ -52,6 +52,13 @@ namespace IngestorConsole
             HelpText = "Set the blob size, in compressed MBs")]
         public int BlobSize { get; set; } = 10;
 
+        [Option(
+            'p',
+            "parallel-streams",
+            Required = false,
+            HelpText = "Set the number of parallel streams (blobs) sending to Kusto")]
+        public int ParallelStreams { get; set; } = 1;
+
         [Option('a', "auth", Required = false, HelpText = "Set authentication method:  'AzCli' or 'System'")]
         public string Authentication { get; set; } = string.Empty;
 

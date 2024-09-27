@@ -1,6 +1,8 @@
 ﻿
 using Azure.Core;
 using Azure.Identity;
+using Kusto.Data.Common;
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.IO.Compression;
 
@@ -11,12 +13,15 @@ namespace IngestorConsole
         private readonly EventGenerator _generator;
         private readonly KustoClient _kustoClient;
         private readonly int _blobSizeInBytes;
+        private readonly ConcurrentQueue<MemoryStream> _streamQueue;
+        private readonly ConcurrentQueue<Task> _uploadTaskQueue = new();
 
         #region Constructors
         private MainOrchestration(
             EventGenerator generator,
             KustoClient kustoClient,
-            int blobSizeInBytes)
+            int blobSizeInBytes,
+            int parallelStreams)
         {
             if (blobSizeInBytes < 1000000)
             {
@@ -27,6 +32,9 @@ namespace IngestorConsole
             _generator = generator;
             _kustoClient = kustoClient;
             _blobSizeInBytes = blobSizeInBytes;
+            _streamQueue = new(Enumerable
+                .Range(0, parallelStreams)
+                .Select(i => new MemoryStream()));
         }
 
         public static async Task<MainOrchestration> CreateAsync(
@@ -46,7 +54,8 @@ namespace IngestorConsole
             return new MainOrchestration(
                 generator,
                 kustoClient,
-                options.BlobSize * 1000000);
+                options.BlobSize * 1000000,
+                options.ParallelStreams);
         }
 
         private static TokenCredential CreateCredentials(string authentication)
@@ -65,27 +74,49 @@ namespace IngestorConsole
 
         async ValueTask IAsyncDisposable.DisposeAsync()
         {
-            await Task.CompletedTask;
+            await Task.WhenAll(_uploadTaskQueue);
         }
 
         public async Task ProcessAsync(CancellationToken ct)
         {
             while (!ct.IsCancellationRequested)
             {
-                using (var stream = GenerateBlob(ct))
+                while (!_streamQueue.Any())
                 {
-                    stream.Position = 0;
-
-                    await _kustoClient.IngestAsync(stream, ct);
-                    Trace.WriteLine($"Writing {stream.Length} bytes");
+                    if (_uploadTaskQueue.TryDequeue(out var uploadTask))
+                    {
+                        await uploadTask;
+                    }
+                    else
+                    {
+                        throw new InvalidOperationException(
+                            "There should be uploads since there are no stream");
+                    }
+                }
+                if (_streamQueue.TryDequeue(out var stream))
+                {
+                    GenerateBlob(stream, ct);
+                    _uploadTaskQueue.Enqueue(UploadDataAsync(stream, ct));
+                }
+                else
+                {
+                    throw new InvalidOperationException("There should be stream available here");
                 }
             }
         }
 
-        private MemoryStream GenerateBlob(CancellationToken ct)
+        private async Task UploadDataAsync(MemoryStream stream, CancellationToken ct)
         {
-            var compressedStream = new MemoryStream();
+            stream.Position = 0;
 
+            await _kustoClient.IngestAsync(stream, ct);
+            Trace.WriteLine($"Written {stream.Length} bytes");
+            stream.SetLength(0);
+            _streamQueue.Enqueue(stream);
+        }
+
+        private void GenerateBlob(MemoryStream compressedStream, CancellationToken ct)
+        {
             using (var compressingStream =
                 new GZipStream(compressedStream, CompressionLevel.Fastest, true))
             using (var writer = new StreamWriter(compressingStream))
@@ -94,8 +125,6 @@ namespace IngestorConsole
                 {
                     _generator.GenerateEvent(writer);
                 }
-
-                return compressedStream;
             }
         }
     }

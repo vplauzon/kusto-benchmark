@@ -8,4 +8,4 @@ WORKDIR /work
 COPY . .
 
 #	Run console app
-CMD ["sh", "-c", "dotnet IngestorConsole.dll -d $dbUri -i $ingestionTable -t $templateTable -s $blobSize -a $authentication -l $sourceLevel -m $mapping"]
+CMD ["sh", "-c", "dotnet IngestorConsole.dll -d $dbUri -i $ingestionTable -t $templateTable -s $blobSize -a $authentication -l $sourceLevel -m $mapping -p $parallelStream"]
