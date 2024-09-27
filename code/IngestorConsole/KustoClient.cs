@@ -27,8 +27,7 @@ namespace IngestorConsole
             var dbName = uri.Segments[1];
             var clusterUri = new Uri($"{uri.Scheme}://{uri.Host}");
             var builder = new KustoConnectionStringBuilder(clusterUri.ToString())
-                .WithAadSystemManagedIdentity();
-                //.WithAadAzureTokenCredentialsAuthentication(credential);
+                .WithAadAzureTokenCredentialsAuthentication(credential);
             var queryProvider = KustoClientFactory.CreateCslQueryProvider(builder);
             var ingestProvider = KustoIngestFactory.CreateQueuedIngestClient(builder);
 

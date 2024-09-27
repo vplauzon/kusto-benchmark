@@ -89,15 +89,15 @@ namespace IngestorConsole
             };
             try
             {
+                Trace.WriteLine("");
+                Trace.WriteLine("Parameterization:");
+                Trace.WriteLine("");
+                Trace.WriteLine(options.ToString());
+                Trace.WriteLine("");
                 await using (var orchestration = await MainOrchestration.CreateAsync(
                     options,
                     cancellationTokenSource.Token))
                 {
-                    Trace.WriteLine("");
-                    Trace.WriteLine("Parameterization:");
-                    Trace.WriteLine("");
-                    Trace.WriteLine(options.ToString());
-                    Trace.WriteLine("");
                     Trace.WriteLine("Processing...");
                     Trace.WriteLine("");
                     await orchestration.ProcessAsync(cancellationTokenSource.Token);
