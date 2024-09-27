@@ -110,7 +110,7 @@ namespace IngestorConsole
             stream.Position = 0;
 
             await _kustoClient.IngestAsync(stream, ct);
-            Trace.WriteLine($"Written {stream.Length} bytes");
+            Trace.WriteLine($"{DateTime.Now}:  {stream.Length} bytes");
             stream.SetLength(0);
             _streamQueue.Enqueue(stream);
         }
