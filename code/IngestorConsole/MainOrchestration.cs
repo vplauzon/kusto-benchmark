@@ -37,6 +37,7 @@ namespace IngestorConsole
         {
             var credentials = CreateCredentials(options.Authentication);
             var kustoClient = new KustoClient(options.DbUri, credentials);
+            Console.WriteLine("Trace");
             var template = await kustoClient.FetchTemplateAsync(options.TemplateTable, ct);
             var generator = await EventGenerator.CreateAsync(template, kustoClient, ct);
 
