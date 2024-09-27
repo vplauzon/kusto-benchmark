@@ -43,7 +43,7 @@ namespace IngestorConsole
 
             Trace.WriteLine("Template:");
             Trace.WriteLine(template);
-            Trace.WriteLine();
+            Trace.WriteLine("");
 
             return new MainOrchestration(
                 generator,
