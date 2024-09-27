@@ -111,6 +111,10 @@ namespace IngestorConsole
                         await orchestration.ProcessAsync(cancellationTokenSource.Token);
                     }
                 }
+                else
+                {
+                    Trace.WriteLine($"Run state set to '{options.Run}':  terminate");
+                }
             }
             finally
             {
