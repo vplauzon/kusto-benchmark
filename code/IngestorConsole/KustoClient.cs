@@ -6,6 +6,7 @@ using Kusto.Data.Net.Client;
 using Kusto.Ingest;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -52,6 +53,8 @@ namespace IngestorConsole
 
         public async Task IngestAsync(string tableName, Stream stream, CancellationToken ct)
         {
+            Trace.WriteLine("Entering ingestion territory!");
+
             var properties = new KustoIngestionProperties(_dbName, tableName);
 
             properties.Format = DataSourceFormat.multijson;

@@ -33,6 +33,7 @@ namespace IngestorConsole
         {
             CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo("en-US");
             CultureInfo.CurrentUICulture = CultureInfo.GetCultureInfo("en-US");
+            //  Ensure traces go to console even in a Docker container
             Trace.Listeners.Add(new ConsoleTraceListener());
 
             Console.WriteLine();
