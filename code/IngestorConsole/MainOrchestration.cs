@@ -1,6 +1,7 @@
 ﻿
 using Azure.Core;
 using Azure.Identity;
+using System.Diagnostics;
 using System.IO.Compression;
 
 namespace IngestorConsole
@@ -40,9 +41,9 @@ namespace IngestorConsole
             var template = await kustoClient.FetchTemplateAsync(options.TemplateTable, ct);
             var generator = await EventGenerator.CreateAsync(template, kustoClient, ct);
 
-            Console.WriteLine("Template:");
-            Console.WriteLine(template);
-            Console.WriteLine();
+            Trace.WriteLine("Template:");
+            Trace.WriteLine(template);
+            Trace.WriteLine();
 
             return new MainOrchestration(
                 generator,
@@ -79,7 +80,7 @@ namespace IngestorConsole
                     stream.Position = 0;
 
                     await _kustoClient.IngestAsync(_ingestTableName, stream, ct);
-                    Console.WriteLine($"Writing {stream.Length} bytes");
+                    Trace.WriteLine($"Writing {stream.Length} bytes");
                 }
             }
         }
