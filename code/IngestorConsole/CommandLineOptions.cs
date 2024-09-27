@@ -10,9 +10,6 @@ namespace IngestorConsole
         [Option('l', "source-level", Required = false, HelpText = "Set source level")]
         public string SourceLevel { get; set; } = "warning";
 
-        [Option('r', "run", Required = false, HelpText = "Set running state:  anything else than empty stays idle")]
-        public string Run { get; set; } = string.Empty;
-
         [Option(
             'd',
             "db-uri",

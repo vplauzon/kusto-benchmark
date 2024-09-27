@@ -8,7 +8,7 @@ namespace IngestorConsole
     internal class EventGenerator
     {
         #region Inner types
-        private record TemplateGenerator(int Index, int Length, Func<string> Generator);
+        private record TemplateReplacement(int Index, int Length, Func<string> Generator);
         #endregion
 
         private readonly IImmutableList<Func<string>> _generators;
@@ -26,46 +26,29 @@ namespace IngestorConsole
         {
             await Task.CompletedTask;
 
-            var generators = StringGenerators(template);
+            var generators = CompileGenerators(template);
 
             return new EventGenerator(generators);
         }
 
-        private static IEnumerable<TemplateGenerator> ExtractTimestampNow(string template)
+        private static IEnumerable<Func<string>> CompileGenerators(string template)
         {
-            const string PATTERN = "TimestampNow()";
-
-            var index = template.IndexOf(PATTERN);
-
-            while (index != -1)
-            {
-                yield return new TemplateGenerator(
-                    index,
-                    PATTERN.Length,
-                    () => DateTime.UtcNow.ToString());
-                template = template.Substring(index + PATTERN.Length);
-                index = template.IndexOf(PATTERN);
-            }
-        }
-
-        private static IEnumerable<Func<string>> StringGenerators(string template)
-        {
-            var timestampNowGenerators = ExtractTimestampNow(template);
-            var generators = timestampNowGenerators
+            var timestampNowReplacements = ExtractTimestampNow(template);
+            var replacements = timestampNowReplacements
                 .OrderBy(g => g.Index)
                 .ToImmutableArray();
             var index = 0;
 
-            foreach (var generator in generators)
+            foreach (var replacement in replacements)
             {
-                if (generator.Index != index)
+                if (replacement.Index != index)
                 {
-                    var text = template.Substring(index, generator.Index - index);
+                    var text = template.Substring(index, replacement.Index - index);
 
                     yield return () => text;
                 }
-                yield return generator.Generator;
-                index = generator.Index + generator.Length;
+                yield return replacement.Generator;
+                index = replacement.Index + replacement.Length;
             }
             if (index != template.Length)
             {
@@ -74,6 +57,25 @@ namespace IngestorConsole
                 yield return () => text;
             }
         }
+
+        #region Generators
+        private static IEnumerable<TemplateReplacement> ExtractTimestampNow(string template)
+        {
+            const string PATTERN = "TimestampNow()";
+
+            var index = template.IndexOf(PATTERN);
+
+            while (index != -1)
+            {
+                yield return new TemplateReplacement(
+                    index,
+                    PATTERN.Length,
+                    () => DateTime.UtcNow.ToString());
+                template = template.Substring(index + PATTERN.Length);
+                index = template.IndexOf(PATTERN);
+            }
+        }
+        #endregion
         #endregion
 
         public void GenerateEvent(TextWriter writer)

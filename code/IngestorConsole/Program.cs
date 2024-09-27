@@ -95,25 +95,18 @@ namespace IngestorConsole
             };
             try
             {
-                if (string.IsNullOrWhiteSpace(options.Run))
+                Trace.WriteLine("");
+                Trace.WriteLine("Parameterization:");
+                Trace.WriteLine("");
+                Trace.WriteLine(options.ToString());
+                Trace.WriteLine("");
+                await using (var orchestration = await MainOrchestration.CreateAsync(
+                    options,
+                    cancellationTokenSource.Token))
                 {
+                    Trace.WriteLine("Processing...");
                     Trace.WriteLine("");
-                    Trace.WriteLine("Parameterization:");
-                    Trace.WriteLine("");
-                    Trace.WriteLine(options.ToString());
-                    Trace.WriteLine("");
-                    await using (var orchestration = await MainOrchestration.CreateAsync(
-                        options,
-                        cancellationTokenSource.Token))
-                    {
-                        Trace.WriteLine("Processing...");
-                        Trace.WriteLine("");
-                        await orchestration.ProcessAsync(cancellationTokenSource.Token);
-                    }
-                }
-                else
-                {
-                    Trace.WriteLine($"Run state set to '{options.Run}':  terminate");
+                    await orchestration.ProcessAsync(cancellationTokenSource.Token);
                 }
             }
             finally
