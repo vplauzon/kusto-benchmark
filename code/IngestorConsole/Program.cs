@@ -95,18 +95,21 @@ namespace IngestorConsole
             };
             try
             {
-                Trace.WriteLine("");
-                Trace.WriteLine("Parameterization:");
-                Trace.WriteLine("");
-                Trace.WriteLine(options.ToString());
-                Trace.WriteLine("");
-                await using (var orchestration = await MainOrchestration.CreateAsync(
-                    options,
-                    cancellationTokenSource.Token))
+                if (string.IsNullOrWhiteSpace(options.Run))
                 {
-                    Trace.WriteLine("Processing...");
                     Trace.WriteLine("");
-                    await orchestration.ProcessAsync(cancellationTokenSource.Token);
+                    Trace.WriteLine("Parameterization:");
+                    Trace.WriteLine("");
+                    Trace.WriteLine(options.ToString());
+                    Trace.WriteLine("");
+                    await using (var orchestration = await MainOrchestration.CreateAsync(
+                        options,
+                        cancellationTokenSource.Token))
+                    {
+                        Trace.WriteLine("Processing...");
+                        Trace.WriteLine("");
+                        await orchestration.ProcessAsync(cancellationTokenSource.Token);
+                    }
                 }
             }
             finally
@@ -117,7 +120,7 @@ namespace IngestorConsole
 
         private static SourceLevels ParseSourceLevel(string sourceLevel)
         {
-            if(Enum.TryParse<SourceLevels>(sourceLevel, true, out var level))
+            if (Enum.TryParse<SourceLevels>(sourceLevel, true, out var level))
             {
                 return level;
             }
