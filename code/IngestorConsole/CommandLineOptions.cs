@@ -7,8 +7,8 @@ namespace IngestorConsole
 {
     public class CommandLineOptions
     {
-        [Option('v', "verbose", Required = false, HelpText = "Set output to verbose messages.")]
-        public bool Verbose { get; set; } = false;
+        [Option('l', "source-level", Required = false, HelpText = "Set source level")]
+        public string SourceLevel { get; set; } = "warning";
 
         [Option(
             'd',

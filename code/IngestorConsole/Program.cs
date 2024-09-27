@@ -80,12 +80,12 @@ namespace IngestorConsole
         {
             var cancellationTokenSource = new CancellationTokenSource();
             var taskCompletionSource = new TaskCompletionSource();
+            var sourceLevel = ParseSourceLevel(options.SourceLevel);
 
             //  Ensure traces go to console even in a Docker container
             Trace.Listeners.Add(new ConsoleTraceListener
             {
-                Filter = new EventTypeFilter(
-                    options.Verbose ? SourceLevels.All : SourceLevels.Warning)
+                Filter = new EventTypeFilter(sourceLevel)
             });
             AppDomain.CurrentDomain.ProcessExit += (e, s) =>
             {
@@ -112,6 +112,18 @@ namespace IngestorConsole
             finally
             {
                 taskCompletionSource.SetResult();
+            }
+        }
+
+        private static SourceLevels ParseSourceLevel(string sourceLevel)
+        {
+            if(Enum.TryParse<SourceLevels>(sourceLevel, true, out var level))
+            {
+                return level;
+            }
+            else
+            {
+                throw new FormatException($"Can't parse source level '{sourceLevel}'");
             }
         }
 
