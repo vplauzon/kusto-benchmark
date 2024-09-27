@@ -2,6 +2,7 @@
 using System.Reflection.Emit;
 using System.Text;
 using System.Text.RegularExpressions;
+using static System.Net.Mime.MediaTypeNames;
 
 namespace IngestorConsole
 {
@@ -9,8 +10,15 @@ namespace IngestorConsole
     {
         #region Inner types
         private record TemplateReplacement(int Index, int Length, Func<string> Generator);
+
+        private record ReferenceValueReplacement(
+            int Index,
+            int Length,
+            string TableName,
+            string GroupName);
         #endregion
 
+        private static readonly Random _random = new();
         private readonly IImmutableList<Func<string>> _generators;
 
         #region Constructors
@@ -24,22 +32,35 @@ namespace IngestorConsole
             KustoClient engineClient,
             CancellationToken ct)
         {
-            await Task.CompletedTask;
-
-            var generators = CompileGenerators(template);
+            var generators = await CompileGeneratorsAsync(template, engineClient, ct);
 
             return new EventGenerator(generators);
         }
 
-        private static IEnumerable<Func<string>> CompileGenerators(string template)
+        private static async Task<IEnumerable<Func<string>>> CompileGeneratorsAsync(
+            string template,
+            KustoClient engineClient,
+            CancellationToken ct)
         {
             var timestampNowReplacements = ExtractTimestampNow(template);
-            var replacements = timestampNowReplacements
+            var referencedValueReplacements =
+                await ExtractReferencedValueAsync(template, engineClient, ct);
+            var r = timestampNowReplacements
+                .Concat(referencedValueReplacements);
+
+            return CompileGenerators(template, r);
+        }
+
+        private static IEnumerable<Func<string>> CompileGenerators(
+            string template,
+            IEnumerable<TemplateReplacement> replacements)
+        {
+            var sortedReplacements = replacements
                 .OrderBy(g => g.Index)
                 .ToImmutableArray();
             var index = 0;
 
-            foreach (var replacement in replacements)
+            foreach (var replacement in sortedReplacements)
             {
                 if (replacement.Index != index)
                 {
@@ -70,9 +91,76 @@ namespace IngestorConsole
                 yield return new TemplateReplacement(
                     index,
                     PATTERN.Length,
-                    () => DateTime.UtcNow.ToString());
+                    () => DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss.ffff"));
                 template = template.Substring(index + PATTERN.Length);
                 index = template.IndexOf(PATTERN);
+            }
+        }
+
+        private static async Task<IEnumerable<TemplateReplacement>> ExtractReferencedValueAsync(
+            string template,
+            KustoClient engineClient,
+            CancellationToken ct)
+        {
+            var referenceValueReplacements = FindReferenceValues(template).ToImmutableArray();
+            var tableToGroupToValueMap =
+                await LoadValuesAsync(referenceValueReplacements, engineClient, ct);
+            var templateReplacements = referenceValueReplacements
+                .Select(r => new TemplateReplacement(
+                    r.Index,
+                    r.Length,
+                    () => RandomPick(tableToGroupToValueMap[r.TableName][r.GroupName])));
+
+            return templateReplacements;
+        }
+
+        private static string RandomPick(IImmutableList<string> list)
+        {
+            var index = _random.Next(list.Count);
+
+            return list[index];
+        }
+
+        private static async Task<IImmutableDictionary<string, IImmutableDictionary<string, IImmutableList<string>>>> LoadValuesAsync(
+            IEnumerable<ReferenceValueReplacement> referenceValueReplacements,
+            KustoClient engineClient,
+            CancellationToken ct)
+        {
+            var tables = referenceValueReplacements
+                .GroupBy(r => r.TableName);
+            var tableTasks = tables
+                .Select(g => new
+                {
+                    TableName = g.Key,
+                    Task = engineClient.LoadReferenceValuesAsync(g.Key, g.Select(i => i.GroupName), ct)
+                })
+                .ToImmutableArray();
+
+            await Task.WhenAll(tableTasks.Select(t => t.Task));
+
+            var map = tableTasks
+                .Select(t => new
+                {
+                    t.TableName,
+                    SubMap = t.Task.Result
+                })
+                .ToImmutableDictionary(o => o.TableName, o => o.SubMap);
+
+            return map;
+        }
+
+        private static IEnumerable<ReferenceValueReplacement> FindReferenceValues(string template)
+        {
+            var match = Regex.Match(template, @"ReferenceValue\(([^,]+),\s*([^)]+)\)");
+
+            while (match.Success)
+            {
+                yield return new ReferenceValueReplacement(
+                    match.Index,
+                    match.Length,
+                    match.Groups[1].Value,
+                    match.Groups[2].Value);
+                match = match.NextMatch();
             }
         }
         #endregion
@@ -83,7 +171,7 @@ namespace IngestorConsole
 #if DEBUG
             var text = string.Concat(_generators.Select(g => g()));
 #endif
-            foreach(var generator in _generators)
+            foreach (var generator in _generators)
             {
                 writer.Write(generator());
             }

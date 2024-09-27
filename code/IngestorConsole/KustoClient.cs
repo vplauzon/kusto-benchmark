@@ -7,6 +7,8 @@ using Kusto.Data.Net.Client;
 using Kusto.Ingest;
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
+using System.Data;
 using System.Diagnostics;
 using System.Linq;
 using System.Text;
@@ -90,6 +92,36 @@ namespace IngestorConsole
             var template = (string)reader.ToDataSet().Tables[0].Rows[0][0];
 
             return template;
+        }
+
+        public async Task<IImmutableDictionary<string, IImmutableList<string>>> LoadReferenceValuesAsync(
+            string tableName,
+            IEnumerable<string> groupNames,
+            CancellationToken ct)
+        {
+            var names = string.Join(", ", groupNames.Select(g => $"'{g}'"));
+            var query = $@"
+{tableName}
+| where GroupName in ({names})
+| project GroupName, Value";
+            var reader = await _queryProvider.ExecuteQueryAsync(
+                _dbName,
+                query,
+                DEFAULT_PROPERTIES,
+                ct);
+            var groups = reader.ToDataSet().Tables[0].Rows
+                .Cast<DataRow>()
+                .Select(r => new
+                {
+                    GroupName = (string)r[0],
+                    Value = (string)r[1]
+                })
+                .GroupBy(o => o.GroupName);
+            var map = groups.ToImmutableDictionary(
+                g => g.Key,
+                g => (IImmutableList<string>)g.Select(g => g.Value).ToImmutableList());
+
+            return map;
         }
 
         public async Task IngestAsync(Stream stream, CancellationToken ct)
