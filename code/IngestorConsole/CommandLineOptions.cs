@@ -47,7 +47,8 @@ namespace IngestorConsole
 DB Uri:  {DbUri}
 Ingestion table:  {IngestionTable}
 Template table:  {TemplateTable}
-Authentication:  {Authentication}";
+Authentication:  {Authentication}
+Source level:  {SourceLevel}";
         }
     }
 }

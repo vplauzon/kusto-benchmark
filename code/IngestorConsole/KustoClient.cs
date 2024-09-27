@@ -62,7 +62,8 @@ namespace IngestorConsole
                 properties,
                 new StreamSourceOptions
                 {
-                    CompressionType = DataSourceCompressionType.GZip
+                    CompressionType = DataSourceCompressionType.GZip,
+                    LeaveOpen = true
                 });
         }
     }
