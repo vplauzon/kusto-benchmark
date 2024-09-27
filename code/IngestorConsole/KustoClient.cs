@@ -29,7 +29,9 @@ namespace IngestorConsole
             var clusterUri = new Uri($"{uri.Scheme}://{uri.Host}");
             var builder = new KustoConnectionStringBuilder(clusterUri.ToString())
                 .WithAadAzureTokenCredentialsAuthentication(credential);
+            Trace.WriteLine("Before query provider");
             var queryProvider = KustoClientFactory.CreateCslQueryProvider(builder);
+            Trace.WriteLine("Before ingest provider");
             var ingestProvider = KustoIngestFactory.CreateQueuedIngestClient(builder);
 
             _queryProvider = queryProvider;
@@ -41,6 +43,7 @@ namespace IngestorConsole
             string templateTableName,
             CancellationToken ct)
         {
+            Trace.WriteLine("Before query template");
             var reader = await _queryProvider.ExecuteQueryAsync(
                 _dbName,
                 templateTableName,
@@ -53,8 +56,7 @@ namespace IngestorConsole
 
         public async Task IngestAsync(string tableName, Stream stream, CancellationToken ct)
         {
-            Trace.WriteLine("Entering ingestion territory!");
-
+            Trace.WriteLine("Before ingest");
             var properties = new KustoIngestionProperties(_dbName, tableName);
 
             properties.Format = DataSourceFormat.multijson;
