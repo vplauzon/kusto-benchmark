@@ -41,10 +41,6 @@ namespace IngestorConsole
             var template = await kustoClient.FetchTemplateAsync(options.TemplateTable, ct);
             var generator = await EventGenerator.CreateAsync(template, kustoClient, ct);
 
-            Trace.WriteLine("Template:");
-            Trace.WriteLine(template);
-            Trace.WriteLine("");
-
             return new MainOrchestration(
                 generator,
                 kustoClient,
