@@ -6,7 +6,7 @@ using static System.Net.Mime.MediaTypeNames;
 
 namespace IngestorConsole
 {
-    internal class EventGenerator
+    internal class ExpressionGenerator
     {
         #region Inner types
         private record TemplateReplacement(int Index, int Length, Func<string> Generator);
@@ -22,19 +22,19 @@ namespace IngestorConsole
         private readonly IImmutableList<Func<string>> _generators;
 
         #region Constructors
-        private EventGenerator(IEnumerable<Func<string>> generators)
+        private ExpressionGenerator(IEnumerable<Func<string>> generators)
         {
             _generators = generators.ToImmutableArray();
         }
 
-        internal static async Task<EventGenerator> CreateAsync(
+        internal static async Task<ExpressionGenerator> CreateAsync(
             string template,
             KustoClient engineClient,
             CancellationToken ct)
         {
             var generators = await CompileGeneratorsAsync(template, engineClient, ct);
 
-            return new EventGenerator(generators);
+            return new ExpressionGenerator(generators);
         }
 
         private static async Task<IEnumerable<Func<string>>> CompileGeneratorsAsync(
@@ -166,16 +166,23 @@ namespace IngestorConsole
         #endregion
         #endregion
 
-        public void GenerateEvent(TextWriter writer)
+        public int GenerateExpression(TextWriter writer)
         {
 #if DEBUG
             var text = string.Concat(_generators.Select(g => g()));
 #endif
+            var totalLength = 0;
+
             foreach (var generator in _generators)
             {
-                writer.Write(generator());
+                var subExpression = generator();
+
+                totalLength += subExpression.Length;
+                writer.Write(subExpression);
             }
             writer.WriteLine();
+
+            return ++totalLength;
         }
     }
 }

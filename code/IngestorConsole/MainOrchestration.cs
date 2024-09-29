@@ -10,7 +10,7 @@ namespace IngestorConsole
 {
     internal class MainOrchestration : IAsyncDisposable
     {
-        private readonly EventGenerator _generator;
+        private readonly ExpressionGenerator _generator;
         private readonly KustoClient _kustoClient;
         private readonly int _blobSizeInBytes;
         private readonly ConcurrentQueue<MemoryStream> _streamQueue;
@@ -18,7 +18,7 @@ namespace IngestorConsole
 
         #region Constructors
         private MainOrchestration(
-            EventGenerator generator,
+            ExpressionGenerator generator,
             KustoClient kustoClient,
             int blobSizeInBytes,
             int parallelStreams)
@@ -49,7 +49,7 @@ namespace IngestorConsole
                 options.IngestionMapping,
                 credentials);
             var template = await kustoClient.FetchTemplateAsync(options.TemplateTable, ct);
-            var generator = await EventGenerator.CreateAsync(template, kustoClient, ct);
+            var generator = await ExpressionGenerator.CreateAsync(template, kustoClient, ct);
 
             return new MainOrchestration(
                 generator,
@@ -123,7 +123,7 @@ namespace IngestorConsole
             {
                 while (compressedStream.Length < _blobSizeInBytes && !ct.IsCancellationRequested)
                 {
-                    _generator.GenerateEvent(writer);
+                    _generator.GenerateExpression(writer);
                 }
             }
         }
