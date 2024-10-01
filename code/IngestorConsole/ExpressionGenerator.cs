@@ -45,8 +45,10 @@ namespace IngestorConsole
             var timestampNowReplacements = ExtractTimestampNow(template);
             var referencedValueReplacements =
                 await ExtractReferencedValueAsync(template, engineClient, ct);
+            var generateIdsReplacements = ExtractGenerateId(template);
             var r = timestampNowReplacements
-                .Concat(referencedValueReplacements);
+                .Concat(referencedValueReplacements)
+                .Concat(generateIdsReplacements);
 
             return CompileGenerators(template, r);
         }
@@ -112,6 +114,24 @@ namespace IngestorConsole
                     () => RandomPick(tableToGroupToValueMap[r.TableName][r.GroupName])));
 
             return templateReplacements;
+        }
+
+        private static IEnumerable<TemplateReplacement> ExtractGenerateId(string template)
+        {
+            var match = Regex.Match(template, @"GenerateId\(""([^""]*)"",\s*""([^""]*)"",\s*(\d+)\)");
+
+            while (match.Success)
+            {
+                var prefix = match.Groups[1].Value;
+                var suffix = match.Groups[2].Value;
+                var cardinality = int.Parse(match.Groups[3].Value);
+
+                yield return new TemplateReplacement(
+                    match.Index,
+                    match.Length,
+                    () => $"{prefix}{_random.Next(cardinality):D5}{suffix}");
+                match = match.NextMatch();
+            }
         }
 
         private static string RandomPick(IImmutableList<string> list)
