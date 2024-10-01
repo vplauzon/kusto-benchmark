@@ -1,7 +1,5 @@
-﻿
-using Azure.Core;
+﻿using Azure.Core;
 using Azure.Identity;
-using Kusto.Data.Common;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.IO.Compression;
@@ -10,6 +8,77 @@ namespace IngestorConsole
 {
     internal class MainOrchestration : IAsyncDisposable
     {
+        #region Inner types
+        private class MetricWriter
+        {
+            #region Inner types
+            private record Metric(
+                DateTime Timestamp,
+                TimeSpan Duration,
+                long UncompressedSize,
+                long CompressedSize,
+                long RowCount);
+            #endregion
+
+            private static readonly TimeSpan PERIOD = TimeSpan.FromSeconds(10);
+            private readonly ConcurrentQueue<Metric> _metrics = new();
+            private readonly object _lock = new object();
+            private DateTime _blockStart = DateTime.Now;
+
+            public void Write(
+                TimeSpan duration,
+                long uncompressedSize,
+                long compressedSize,
+                long rowCount)
+            {
+                bool blockComplete = false;
+
+                lock (_lock)
+                {
+                    if (!_metrics.Any())
+                    {
+                        _blockStart = DateTime.Now;
+                    }
+                    if (DateTime.Now.Subtract(_blockStart) > PERIOD)
+                    {
+                        blockComplete = true;
+                    }
+                }
+                _metrics.Enqueue(new Metric(
+                    DateTime.Now,
+                    duration,
+                    uncompressedSize,
+                    compressedSize,
+                    rowCount));
+                if (blockComplete)
+                {
+                    ExportMetrics();
+                }
+            }
+
+            private void ExportMetrics()
+            {
+                var list = new List<Metric>();
+
+                while (_metrics.TryDequeue(out var metric))
+                {
+                    list.Add(metric);
+                }
+
+                var startDate = list.Min(m => m.Timestamp);
+                var maxLatency = list.Max(m => m.Duration);
+                var uncompressedSize = list.Sum(m => m.UncompressedSize);
+                var compressedSize = list.Sum(m => m.CompressedSize);
+                var rowCount = list.Sum(m => m.RowCount);
+
+                Console.WriteLine(
+                    $"#metric# {startDate}:  uncompressed({uncompressedSize}), "
+                    + $"compressed({compressedSize}), maxLatency({maxLatency}), "
+                    + $"rowCount({rowCount})");
+            }
+        }
+        #endregion
+
         private readonly ExpressionGenerator _generator;
         private readonly KustoClient _kustoClient;
         private readonly int _blobSizeInBytes;
@@ -79,6 +148,8 @@ namespace IngestorConsole
 
         public async Task ProcessAsync(CancellationToken ct)
         {
+            var metricWriter = new MetricWriter();
+
             while (!ct.IsCancellationRequested)
             {
                 while (!_streamQueue.Any())
@@ -95,8 +166,19 @@ namespace IngestorConsole
                 }
                 if (_streamQueue.TryDequeue(out var stream))
                 {
-                    GenerateBlob(stream, ct);
-                    _uploadTaskQueue.Enqueue(UploadDataAsync(stream, ct));
+                    var stopwatch = new Stopwatch();
+
+                    stopwatch.Start();
+
+                    (var uncompressedSize, var rowCount) = GenerateBlob(stream, ct);
+
+                    _uploadTaskQueue.Enqueue(UploadDataAsync(
+                        metricWriter,
+                        stream,
+                        stopwatch,
+                        uncompressedSize,
+                        rowCount,
+                        ct));
                 }
                 else
                 {
@@ -105,27 +187,43 @@ namespace IngestorConsole
             }
         }
 
-        private async Task UploadDataAsync(MemoryStream stream, CancellationToken ct)
+        private async Task UploadDataAsync(
+            MetricWriter metricWriter,
+            MemoryStream stream,
+            Stopwatch stopwatch,
+            long uncompressedSize,
+            long rowCount,
+            CancellationToken ct)
         {
+            var compressedSize = stream.Length;
+
             stream.Position = 0;
 
             await _kustoClient.IngestAsync(stream, ct);
-            Trace.WriteLine($"{DateTime.Now}:  {stream.Length} bytes");
             stream.SetLength(0);
             _streamQueue.Enqueue(stream);
+            metricWriter.Write(stopwatch.Elapsed, uncompressedSize, compressedSize, rowCount);
         }
 
-        private void GenerateBlob(MemoryStream compressedStream, CancellationToken ct)
+        private (long uncompressedSize, long rowCount) GenerateBlob(
+            MemoryStream compressedStream,
+            CancellationToken ct)
         {
+            long size = 0;
+            long rowCount = 0;
+
             using (var compressingStream =
                 new GZipStream(compressedStream, CompressionLevel.Fastest, true))
             using (var writer = new StreamWriter(compressingStream))
             {
                 while (compressedStream.Length < _blobSizeInBytes && !ct.IsCancellationRequested)
                 {
-                    _generator.GenerateExpression(writer);
+                    size += _generator.GenerateExpression(writer);
+                    ++rowCount;
                 }
             }
+
+            return (size, rowCount);
         }
     }
 }
