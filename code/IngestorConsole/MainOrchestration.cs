@@ -75,7 +75,7 @@ namespace IngestorConsole
                 Console.WriteLine(
                     $"#metric# Timestamp={startDateText}, Uncompressed={uncompressedSize}, "
                     + $"Compressed={compressedSize}, MaxLatency={maxLatency}, "
-                    + $"RowCount={rowCount}");
+                    + $"RowCount={rowCount}, BlobCount={list.Count}");
             }
         }
         #endregion
