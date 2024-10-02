@@ -1,0 +1,68 @@
+name:  Query Continuous Build
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'code/**'
+    branches:
+      - main
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  folder:  Query
+  repo:  query
+
+jobs:
+  main:
+    runs-on: ubuntu-latest
+    environment:  dev
+    
+    steps:
+    - uses: actions/checkout@v2
+    - name: Setup .NET Core
+      uses: actions/setup-dotnet@v1
+      with:
+        dotnet-version: 8.x
+
+    # See https://docs.microsoft.com/en-us/dotnet/core/tools/dotnet-restore
+    - name: Install dependencies
+      run: dotnet restore code
+    - name: Patch version
+      id:  patch-version
+      run: python3 deployment/patch-version.py code/${folder}Console/${folder}Console.csproj ${{ github.run_number }}
+    - name:  Output full version
+      shell:  bash
+      run:  |
+        echo "Full version:  ${{ steps.patch-version.outputs.full-version }}"
+    # See https://docs.microsoft.com/en-us/dotnet/core/tools/dotnet-build
+    - name: .NET Build Console
+      run: dotnet build code/${folder}Console --configuration Release --no-restore
+    - name: Copy binaries
+      run: |
+        mkdir bin
+        cp -r code/${folder}Console/bin/Release/net*/* bin
+
+    # Using the user MI as exposed in https://yourazurecoach.com/2022/12/29/use-github-actions-with-user-assigned-managed-identity/
+    - name: Log into Azure
+      uses: azure/login@v1
+      with:
+        client-id: ${{ secrets.AZURE_CLIENT_ID }}
+        tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+        subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+    
+    # See https://learn.microsoft.com/en-us/azure/container-registry/container-registry-quickstart-task-cli
+    - name:  Docker Build / Push container
+      run:  |
+        az acr build --image "${repo}/dev:${{ steps.patch-version.outputs.full-version }}" \
+          --registry ${{ vars.REGISTRY_NAME }} \
+          --file deployment/docker-${repo}/Dockerfile bin
+    - name:  Docker tag latest
+      run:  |
+        az acr import --source "${repo}/dev:${{ steps.patch-version.outputs.full-version }}" \
+          --image "${repo}/dev:latest" \
+          --registry ${{ vars.REGISTRY_NAME }} --name ${{ vars.REGISTRY_NAME }} \
+          --force
