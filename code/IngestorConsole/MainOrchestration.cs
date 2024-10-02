@@ -3,6 +3,7 @@ using Azure.Identity;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.IO.Compression;
+using BenchmarkLib;
 
 namespace IngestorConsole
 {
@@ -81,7 +82,8 @@ namespace IngestorConsole
         #endregion
 
         private readonly ExpressionGenerator _generator;
-        private readonly KustoClient _kustoClient;
+        private readonly KustoEngineClient _kustoEngineClient;
+        private readonly KustoIngestClient _kustoIngestClient;
         private readonly int _blobSizeInBytes;
         private readonly ConcurrentQueue<MemoryStream> _streamQueue;
         private readonly ConcurrentQueue<Task> _uploadTaskQueue = new();
@@ -89,7 +91,8 @@ namespace IngestorConsole
         #region Constructors
         private MainOrchestration(
             ExpressionGenerator generator,
-            KustoClient kustoClient,
+            KustoEngineClient kustoEngineClient,
+            KustoIngestClient kustoIngestClient,
             int blobSizeInBytes,
             int parallelStreams)
         {
@@ -100,7 +103,8 @@ namespace IngestorConsole
                     "Must be at least 1MB");
             }
             _generator = generator;
-            _kustoClient = kustoClient;
+            _kustoEngineClient = kustoEngineClient;
+            _kustoIngestClient = kustoIngestClient;
             _blobSizeInBytes = blobSizeInBytes;
             _streamQueue = new(Enumerable
                 .Range(0, parallelStreams)
@@ -112,18 +116,20 @@ namespace IngestorConsole
             CancellationToken ct)
         {
             var credentials = CreateCredentials(options.Authentication);
-            var kustoClient = new KustoClient(
+            var kustoEngineClient = new KustoEngineClient(options.DbUri, credentials);
+            var kustoIngestClient = new KustoIngestClient(
                 options.DbUri,
                 options.IngestionTable,
                 options.IngestionFormat,
                 options.IngestionMapping,
                 credentials);
-            var template = await kustoClient.FetchTemplateAsync(options.TemplateTable, ct);
-            var generator = await ExpressionGenerator.CreateAsync(template, kustoClient, ct);
+            var template = await kustoEngineClient.FetchTemplateAsync(options.TemplateTable, ct);
+            var generator = await ExpressionGenerator.CreateAsync(template, kustoEngineClient, ct);
 
             return new MainOrchestration(
                 generator,
-                kustoClient,
+                kustoEngineClient,
+                kustoIngestClient,
                 options.BlobSize * 1000000,
                 options.ParallelStreams);
         }
@@ -200,7 +206,7 @@ namespace IngestorConsole
 
             stream.Position = 0;
 
-            await _kustoClient.IngestAsync(stream, ct);
+            await _kustoIngestClient.IngestAsync(stream, ct);
             stream.SetLength(0);
             _streamQueue.Enqueue(stream);
             metricWriter.Write(stopwatch.Elapsed, uncompressedSize, compressedSize, rowCount);

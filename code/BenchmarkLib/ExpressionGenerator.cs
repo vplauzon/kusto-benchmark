@@ -1,12 +1,10 @@
 ﻿using System.Collections.Immutable;
-using System.Reflection.Emit;
 using System.Text;
 using System.Text.RegularExpressions;
-using static System.Net.Mime.MediaTypeNames;
 
-namespace IngestorConsole
+namespace BenchmarkLib
 {
-    internal class ExpressionGenerator
+    public class ExpressionGenerator
     {
         #region Inner types
         private record TemplateReplacement(int Index, int Length, Func<string> Generator);
@@ -27,9 +25,9 @@ namespace IngestorConsole
             _generators = generators.ToImmutableArray();
         }
 
-        internal static async Task<ExpressionGenerator> CreateAsync(
+        public static async Task<ExpressionGenerator> CreateAsync(
             string template,
-            KustoClient engineClient,
+            KustoEngineClient engineClient,
             CancellationToken ct)
         {
             var generators = await CompileGeneratorsAsync(template, engineClient, ct);
@@ -39,7 +37,7 @@ namespace IngestorConsole
 
         private static async Task<IEnumerable<Func<string>>> CompileGeneratorsAsync(
             string template,
-            KustoClient engineClient,
+            KustoEngineClient engineClient,
             CancellationToken ct)
         {
             var timestampNowReplacements = ExtractTimestampNow(template);
@@ -101,7 +99,7 @@ namespace IngestorConsole
 
         private static async Task<IEnumerable<TemplateReplacement>> ExtractReferencedValueAsync(
             string template,
-            KustoClient engineClient,
+            KustoEngineClient engineClient,
             CancellationToken ct)
         {
             var referenceValueReplacements = FindReferenceValues(template).ToImmutableArray();
@@ -143,7 +141,7 @@ namespace IngestorConsole
 
         private static async Task<IImmutableDictionary<string, IImmutableDictionary<string, IImmutableList<string>>>> LoadValuesAsync(
             IEnumerable<ReferenceValueReplacement> referenceValueReplacements,
-            KustoClient engineClient,
+            KustoEngineClient engineClient,
             CancellationToken ct)
         {
             var tables = referenceValueReplacements
