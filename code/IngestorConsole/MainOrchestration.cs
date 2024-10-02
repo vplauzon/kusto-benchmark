@@ -72,9 +72,9 @@ namespace IngestorConsole
                 var rowCount = list.Sum(m => m.RowCount);
 
                 Console.WriteLine(
-                    $"#metric# {startDate}:  uncompressed({uncompressedSize}), "
-                    + $"compressed({compressedSize}), maxLatency({maxLatency}), "
-                    + $"rowCount({rowCount})");
+                    $"#metric# Timestamp={startDate}, Uncompressed={uncompressedSize}, "
+                    + $"Compressed={compressedSize}, MaxLatency={maxLatency}, "
+                    + $"RowCount={rowCount}");
             }
         }
         #endregion
