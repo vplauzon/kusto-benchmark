@@ -66,13 +66,14 @@ namespace IngestorConsole
                 }
 
                 var startDate = list.Min(m => m.Timestamp);
+                var startDateText = startDate.ToString("yyyy-MM-dd HH:mm:ss.ffff");
                 var maxLatency = list.Max(m => m.Duration);
                 var uncompressedSize = list.Sum(m => m.UncompressedSize);
                 var compressedSize = list.Sum(m => m.CompressedSize);
                 var rowCount = list.Sum(m => m.RowCount);
 
                 Console.WriteLine(
-                    $"#metric# Timestamp={startDate}, Uncompressed={uncompressedSize}, "
+                    $"#metric# Timestamp={startDateText}, Uncompressed={uncompressedSize}, "
                     + $"Compressed={compressedSize}, MaxLatency={maxLatency}, "
                     + $"RowCount={rowCount}");
             }
