@@ -5,6 +5,7 @@ using Kusto.Data.Common;
 using Kusto.Data.Ingestion;
 using Kusto.Data.Net.Client;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Data;
@@ -109,6 +110,17 @@ Template
                 g => (IImmutableList<string>)g.Select(g => g.Value).ToImmutableList());
 
             return map;
+        }
+
+        public async Task QueryAsync(string kqlQuery, CancellationToken ct)
+        {
+            var reader = await _queryProvider.ExecuteQueryAsync(
+                _dbName,
+                kqlQuery,
+                DEFAULT_PROPERTIES,
+                ct);
+            
+            reader.ToDataSet();
         }
     }
 }
