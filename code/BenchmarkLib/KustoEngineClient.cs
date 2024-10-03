@@ -63,12 +63,17 @@ namespace BenchmarkLib
         #endregion
 
         public async Task<string> FetchTemplateAsync(
-            string templateTableName,
+            string templateName,
             CancellationToken ct)
         {
+            var query = $@"
+Template
+| where TemplateName=='{templateName}'
+| project TemplateValue
+";
             var reader = await _queryProvider.ExecuteQueryAsync(
                 _dbName,
-                templateTableName,
+                query,
                 DEFAULT_PROPERTIES,
                 ct);
             var template = (string)reader.ToDataSet().Tables[0].Rows[0][0];

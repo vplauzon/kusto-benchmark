@@ -123,7 +123,7 @@ namespace IngestorConsole
                 options.IngestionFormat,
                 options.IngestionMapping,
                 credentials);
-            var template = await kustoEngineClient.FetchTemplateAsync(options.TemplateTable, ct);
+            var template = await kustoEngineClient.FetchTemplateAsync(options.TemplateName, ct);
             var generator = await ExpressionGenerator.CreateAsync(template, kustoEngineClient, ct);
 
             return new IngestorOrchestration(

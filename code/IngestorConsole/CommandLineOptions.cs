@@ -40,10 +40,10 @@ namespace IngestorConsole
 
         [Option(
             't',
-            "template-table",
+            "template-name",
             Required = true,
-            HelpText = "Set the template table")]
-        public string TemplateTable { get; set; } = string.Empty;
+            HelpText = "Set the template name")]
+        public string TemplateName { get; set; } = string.Empty;
 
         [Option(
             's',
@@ -67,7 +67,7 @@ namespace IngestorConsole
             return $@"
 DB Uri:  {DbUri}
 Ingestion table:  {IngestionTable}
-Template table:  {TemplateTable}
+Template name:  {TemplateName}
 Authentication:  {Authentication}
 Source level:  {SourceLevel}";
         }

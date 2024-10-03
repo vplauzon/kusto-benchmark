@@ -19,10 +19,10 @@ namespace QueryConsole
 
         [Option(
             't',
-            "template-table",
+            "template-name",
             Required = true,
-            HelpText = "Set the template table")]
-        public string TemplateTable { get; set; } = string.Empty;
+            HelpText = "Set the template name")]
+        public string TemplateName { get; set; } = string.Empty;
 
         [Option('a', "auth", Required = false, HelpText = "Set authentication method:  'AzCli' or 'System'")]
         public string Authentication { get; set; } = string.Empty;
@@ -31,7 +31,7 @@ namespace QueryConsole
         {
             return $@"
 DB Uri:  {DbUri}
-Template table:  {TemplateTable}
+Template Name:  {TemplateName}
 Authentication:  {Authentication}
 Source level:  {SourceLevel}";
         }

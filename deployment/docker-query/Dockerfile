@@ -8,4 +8,4 @@ WORKDIR /work
 COPY . .
 
 #	Run console app
-CMD ["sh", "-c", "dotnet QueryConsole.dll -d $dbUri -i $ingestionTable -t $templateTable -s $blobSize -a $authentication -l $sourceLevel -m $mapping -p $parallelStream"]
+CMD ["sh", "-c", "dotnet QueryConsole.dll -d $dbUri -i $ingestionTable -t $templateName -s $blobSize -a $authentication -l $sourceLevel -m $mapping -p $parallelStream"]
