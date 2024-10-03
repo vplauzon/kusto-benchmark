@@ -7,7 +7,7 @@ using BenchmarkLib;
 
 namespace IngestorConsole
 {
-    internal class MainOrchestration : IAsyncDisposable
+    internal class IngestorOrchestration : IAsyncDisposable
     {
         #region Inner types
         private class MetricWriter
@@ -89,7 +89,7 @@ namespace IngestorConsole
         private readonly ConcurrentQueue<Task> _uploadTaskQueue = new();
 
         #region Constructors
-        private MainOrchestration(
+        private IngestorOrchestration(
             ExpressionGenerator generator,
             KustoEngineClient kustoEngineClient,
             KustoIngestClient kustoIngestClient,
@@ -111,7 +111,7 @@ namespace IngestorConsole
                 .Select(i => new MemoryStream()));
         }
 
-        public static async Task<MainOrchestration> CreateAsync(
+        public static async Task<IngestorOrchestration> CreateAsync(
             CommandLineOptions options,
             CancellationToken ct)
         {
@@ -126,7 +126,7 @@ namespace IngestorConsole
             var template = await kustoEngineClient.FetchTemplateAsync(options.TemplateTable, ct);
             var generator = await ExpressionGenerator.CreateAsync(template, kustoEngineClient, ct);
 
-            return new MainOrchestration(
+            return new IngestorOrchestration(
                 generator,
                 kustoEngineClient,
                 kustoIngestClient,

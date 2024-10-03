@@ -100,7 +100,7 @@ namespace IngestorConsole
                 Trace.WriteLine("");
                 Trace.WriteLine(options.ToString());
                 Trace.WriteLine("");
-                await using (var orchestration = await MainOrchestration.CreateAsync(
+                await using (var orchestration = await IngestorOrchestration.CreateAsync(
                     options,
                     cancellationTokenSource.Token))
                 {
