@@ -10,6 +10,8 @@ namespace QueryConsole
 {
     internal class QueryOrchestration : IAsyncDisposable
     {
+        private static readonly TimeSpan PERIOD = TimeSpan.FromSeconds(10);
+
         private readonly ExpressionGenerator _generator;
         private readonly KustoEngineClient _kustoEngineClient;
         private readonly int _queriesPerMinute;
@@ -68,7 +70,9 @@ namespace QueryConsole
             var builder = new StringBuilder();
             var minuteStart = DateTime.Now;
             var queryCount = 0;
-            var errorCount = 0;
+            var reportStart = DateTime.Now;
+            var reportQueryCount = 0;
+            var reportErrorCount = 0;
 
             await Task.CompletedTask;
 
@@ -76,10 +80,20 @@ namespace QueryConsole
             {
                 _queryTaskQueue.Enqueue(InvokeQueryAsync(builder, ct));
                 ++queryCount;
-                errorCount += await CleanQueueAsync();
+                ++reportQueryCount;
+                reportErrorCount += await CleanQueueAsync();
 
                 var delta = DateTime.Now - minuteStart;
 
+                if(DateTime.Now - reportStart> PERIOD)
+                {   //  Let's report
+                    Console.WriteLine(
+                        $"#metric# Timestamp={reportStart}, QueryCount={reportQueryCount}, "
+                        + $"ErrorCount={reportErrorCount}");
+                    reportStart = DateTime.Now;
+                    reportQueryCount = 0;
+                    reportErrorCount = 0;
+                }
                 if (delta < TimeSpan.FromMinutes(1))
                 {
                     var elapsedPercent = delta / TimeSpan.FromMinutes(1);
@@ -105,12 +119,8 @@ namespace QueryConsole
                 }
                 else
                 {   //  Minute is completed
-                    Console.WriteLine(
-                        $"#metric# Timestamp={minuteStart}, QueryCount={queryCount}, "
-                        + $"ErrorCount={errorCount}");
                     minuteStart += TimeSpan.FromMinutes(1);
                     queryCount = 0;
-                    errorCount = 0;
                 }
             }
         }
