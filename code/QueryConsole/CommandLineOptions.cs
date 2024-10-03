@@ -24,6 +24,13 @@ namespace QueryConsole
             HelpText = "Set the template name")]
         public string TemplateName { get; set; } = string.Empty;
 
+        [Option(
+            'q',
+            "queries-per-minute",
+            Required = false,
+            HelpText = "Set the query pace")]
+        public int QueriesPerMinute { get; set; } = 10;
+
         [Option('a', "auth", Required = false, HelpText = "Set authentication method:  'AzCli' or 'System'")]
         public string Authentication { get; set; } = string.Empty;
 
@@ -32,6 +39,7 @@ namespace QueryConsole
             return $@"
 DB Uri:  {DbUri}
 Template Name:  {TemplateName}
+Queries per minute:  {QueriesPerMinute}
 Authentication:  {Authentication}
 Source level:  {SourceLevel}";
         }
