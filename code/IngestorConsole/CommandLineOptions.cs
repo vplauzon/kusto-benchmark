@@ -46,11 +46,11 @@ namespace IngestorConsole
         public string TemplateName { get; set; } = string.Empty;
 
         [Option(
-            's',
-            "blob-size",
+            'r',
+            "row-count",
             Required = false,
-            HelpText = "Set the blob size, in compressed MBs")]
-        public int BlobSize { get; set; } = 10;
+            HelpText = "Set the row count in a blob")]
+        public long RowCount { get; set; } = 100000;
 
         [Option(
             'p',

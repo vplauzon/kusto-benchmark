@@ -84,7 +84,7 @@ namespace IngestorConsole
         private readonly ExpressionGenerator _generator;
         private readonly KustoEngineClient _kustoEngineClient;
         private readonly KustoIngestClient _kustoIngestClient;
-        private readonly int _blobSizeInBytes;
+        private readonly long _rowCount;
         private readonly ConcurrentQueue<MemoryStream> _streamQueue;
         private readonly ConcurrentQueue<Task> _uploadTaskQueue = new();
 
@@ -93,19 +93,17 @@ namespace IngestorConsole
             ExpressionGenerator generator,
             KustoEngineClient kustoEngineClient,
             KustoIngestClient kustoIngestClient,
-            int blobSizeInBytes,
+            long rowCount,
             int parallelStreams)
         {
-            if (blobSizeInBytes < 1000000)
+            if (rowCount < 100)
             {
-                throw new ArgumentOutOfRangeException(
-                    nameof(blobSizeInBytes),
-                    "Must be at least 1MB");
+                throw new ArgumentOutOfRangeException(nameof(rowCount), "Must be at least 100");
             }
             _generator = generator;
             _kustoEngineClient = kustoEngineClient;
             _kustoIngestClient = kustoIngestClient;
-            _blobSizeInBytes = blobSizeInBytes;
+            _rowCount = rowCount;
             _streamQueue = new(Enumerable
                 .Range(0, parallelStreams)
                 .Select(i => new MemoryStream()));
@@ -130,7 +128,7 @@ namespace IngestorConsole
                 generator,
                 kustoEngineClient,
                 kustoIngestClient,
-                options.BlobSize * 1000000,
+                options.RowCount,
                 options.ParallelStreams);
         }
 
@@ -223,7 +221,7 @@ namespace IngestorConsole
                 new GZipStream(compressedStream, CompressionLevel.Fastest, true))
             using (var writer = new StreamWriter(compressingStream))
             {
-                while (compressedStream.Length < _blobSizeInBytes && !ct.IsCancellationRequested)
+                while (rowCount < _rowCount && !ct.IsCancellationRequested)
                 {
                     size += _generator.GenerateExpression(writer);
                     ++rowCount;
