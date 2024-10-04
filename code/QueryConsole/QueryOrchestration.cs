@@ -87,6 +87,8 @@ namespace QueryConsole
 
                 if(DateTime.Now - reportStart> PERIOD)
                 {   //  Let's report
+                    var reportStartText = reportStart.ToString("yyyy-MM-dd HH:mm:ss.ffff");
+
                     Console.WriteLine(
                         $"#metric# Timestamp={reportStart}, QueryCount={reportQueryCount}, "
                         + $"ErrorCount={reportErrorCount}");
