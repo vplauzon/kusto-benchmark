@@ -8,4 +8,4 @@ WORKDIR /work
 COPY . .
 
 #	Run console app
-CMD ["sh", "-c", "dotnet QueryConsole.dll -d $dbUri -i -t $templateName -q $queriesPerMin"]
+CMD ["sh", "-c", "dotnet QueryConsole.dll -d $dbUri -t $templateName -q $queriesPerMin"]
