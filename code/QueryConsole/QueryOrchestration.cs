@@ -90,7 +90,7 @@ namespace QueryConsole
                     var reportStartText = reportStart.ToString("yyyy-MM-dd HH:mm:ss.ffff");
 
                     Console.WriteLine(
-                        $"#metric# Timestamp={reportStart}, QueryCount={reportQueryCount}, "
+                        $"#metric# Timestamp={reportStartText}, QueryCount={reportQueryCount}, "
                         + $"ErrorCount={reportErrorCount}");
                     reportStart = DateTime.Now;
                     reportQueryCount = 0;
