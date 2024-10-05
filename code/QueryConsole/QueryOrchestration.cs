@@ -78,52 +78,50 @@ namespace QueryConsole
 
             while (!ct.IsCancellationRequested)
             {
+                reportErrorCount += await CleanQueueAsync();
+
                 _queryTaskQueue.Enqueue(InvokeQueryAsync(builder, ct));
                 ++queryCount;
                 ++reportQueryCount;
-                reportErrorCount += await CleanQueueAsync();
-
-                var delta = DateTime.Now - minuteStart;
-
-                if(DateTime.Now - reportStart> PERIOD)
+                if (DateTime.Now - reportStart > PERIOD)
                 {   //  Let's report
                     var reportStartText = reportStart.ToString("yyyy-MM-dd HH:mm:ss.ffff");
 
                     Console.WriteLine(
                         $"#metric# Timestamp={reportStartText}, QueryCount={reportQueryCount}, "
                         + $"ErrorCount={reportErrorCount}");
-                    reportStart = DateTime.Now;
+                    reportStart += PERIOD;
                     reportQueryCount = 0;
                     reportErrorCount = 0;
                 }
-                if (delta < TimeSpan.FromMinutes(1))
+
+                var t = DateTime.Now - minuteStart;
+
+                if (t >= TimeSpan.FromMinutes(1) || queryCount == _queriesPerMinute)
                 {
-                    var elapsedPercent = delta / TimeSpan.FromMinutes(1);
-                    var expectedHits = elapsedPercent * _queriesPerMinute;
-
-                    if (expectedHits <= queryCount)
-                    {   //  We're good, let's go to sleep
-                        var nextHitTimespan =
-                            (float)queryCount / _queriesPerMinute * TimeSpan.FromMinutes(1);
-                        var timeToGo = nextHitTimespan.Subtract(delta);
-
-                        if (timeToGo > TimeSpan.FromMilliseconds(100))
-                        {
-                            await Task.Delay(timeToGo);
-                        }
-                        else
-                        {   //  Not enough time to wait for, let's just go
-                        }
-                    }
-                    else
-                    {   //  We are falling behind, no break, let's query again
-                    }
-                }
-                else
-                {   //  Minute is completed
                     minuteStart += TimeSpan.FromMinutes(1);
                     queryCount = 0;
+                    await WaitUntilAsync(minuteStart - DateTime.Now);
                 }
+                else
+                {
+                    var expectedHits = (int)((t / TimeSpan.FromMinutes(1)) * _queriesPerMinute + 1);
+
+                    if (expectedHits <= queryCount)
+                    {
+                        var nextT = queryCount * TimeSpan.FromMinutes(1) / _queriesPerMinute;
+
+                        await WaitUntilAsync(nextT - t);
+                    }
+                }
+            }
+        }
+
+        private async Task WaitUntilAsync(TimeSpan delta)
+        {
+            if (delta > TimeSpan.Zero)
+            {
+                await Task.Delay(delta);
             }
         }
 
