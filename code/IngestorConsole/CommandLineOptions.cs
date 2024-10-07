@@ -67,7 +67,9 @@ namespace IngestorConsole
             return $@"
 DB Uri:  {DbUri}
 Ingestion table:  {IngestionTable}
+Ingestion mapping:  {IngestionMapping}
 Template name:  {TemplateName}
+Row count:  {RowCount}
 Authentication:  {Authentication}
 Source level:  {SourceLevel}";
         }
