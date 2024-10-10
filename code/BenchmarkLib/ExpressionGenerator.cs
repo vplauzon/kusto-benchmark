@@ -92,8 +92,7 @@ namespace BenchmarkLib
                     index,
                     PATTERN.Length,
                     () => DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss.ffff"));
-                template = template.Substring(index + PATTERN.Length);
-                index = template.IndexOf(PATTERN);
+                index = template.IndexOf(PATTERN, index + PATTERN.Length);
             }
         }
 
