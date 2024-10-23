@@ -1,4 +1,5 @@
-﻿using System.Collections.Immutable;
+﻿using Kusto.Cloud.Platform.Utils;
+using System.Collections.Immutable;
 using System.Text;
 using System.Text.RegularExpressions;
 
@@ -44,9 +45,11 @@ namespace BenchmarkLib
             var referencedValueReplacements =
                 await ExtractReferencedValueAsync(template, engineClient, ct);
             var generateIdsReplacements = ExtractGenerateId(template);
+            var generateWeightedLabelsReplacements = ExtractGenerateWeightedLabels(template);
             var r = timestampNowReplacements
                 .Concat(referencedValueReplacements)
-                .Concat(generateIdsReplacements);
+                .Concat(generateIdsReplacements)
+                .Concat(generateWeightedLabelsReplacements);
 
             return CompileGenerators(template, r);
         }
@@ -115,18 +118,64 @@ namespace BenchmarkLib
 
         private static IEnumerable<TemplateReplacement> ExtractGenerateId(string template)
         {
-            var match = Regex.Match(template, @"GenerateId\(""([^""]*)"",\s*""([^""]*)"",\s*(\d+)\)");
+            var match = Regex.Match(template, @"GenerateId\s*\(\s*(\d+)\s*\)");
 
             while (match.Success)
             {
-                var prefix = match.Groups[1].Value;
-                var suffix = match.Groups[2].Value;
-                var cardinality = int.Parse(match.Groups[3].Value);
+                var cardinality = int.Parse(match.Groups[1].Value);
 
                 yield return new TemplateReplacement(
                     match.Index,
                     match.Length,
-                    () => $"{prefix}{_random.Next(cardinality):D5}{suffix}");
+                    () => $"{_random.Next(cardinality):D5}");
+                match = match.NextMatch();
+            }
+        }
+
+        private static IEnumerable<TemplateReplacement> ExtractGenerateWeightedLabels(string template)
+        {
+            var match = Regex.Match(template, @"GenerateWeightedLabels\(([^)]+)\)");
+
+            while (match.Success)
+            {
+                var rematch = Regex.Match(template, @"""([^""]+)""\s*,\s*(\d+)");
+                var rematches = ListMatch(rematch);
+                var components = rematches
+                    .Select(m => new
+                    {
+                        Label = m.Groups[1].Value,
+                        Weight = int.Parse(m.Groups[2].Value)
+                    })
+                    .ToImmutableArray();
+                var cummulativeComponents = Enumerable.Range(0, components.Length)
+                    .Select(i => new
+                    {
+                        components[i].Label,
+                        Threshold = components.Take(i + 1).Sum(c => c.Weight)
+                    })
+                    .ToImmutableArray();
+                var totalWeight = cummulativeComponents.Last().Threshold;
+                Func<string> generator = () =>
+                {
+                    var number = _random.Next(totalWeight);
+                    var label = cummulativeComponents.Where(c => c.Threshold > number).First().Label;
+
+                    return label;
+                };
+
+                yield return new TemplateReplacement(
+                    match.Index,
+                    match.Length,
+                    generator);
+                match = match.NextMatch();
+            }
+        }
+
+        private static IEnumerable<Match> ListMatch(Match match)
+        {
+            while (match.Success)
+            {
+                yield return match;
                 match = match.NextMatch();
             }
         }
