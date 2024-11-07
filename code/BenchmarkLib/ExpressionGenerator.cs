@@ -138,7 +138,7 @@ namespace BenchmarkLib
 
             while (match.Success)
             {
-                var rematch = Regex.Match(template, @"""([^""]+)""\s*,\s*(\d+)");
+                var rematch = Regex.Match(match.Groups[1].Value, @"""([^""]+)""\s*,\s*(\d+)");
                 var rematches = ListMatch(rematch);
                 var components = rematches
                     .Select(m => new
