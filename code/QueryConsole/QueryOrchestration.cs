@@ -5,6 +5,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Reflection.Emit;
 using System.Text;
+using static System.Net.Mime.MediaTypeNames;
 
 namespace QueryConsole
 {
@@ -97,7 +98,7 @@ namespace QueryConsole
 
                 var t = DateTime.Now - minuteStart;
 
-                if (t >= TimeSpan.FromMinutes(1) || queryCount == _queriesPerMinute)
+                if (t >= TimeSpan.FromMinutes(1) || queryCount >= _queriesPerMinute)
                 {
                     minuteStart += TimeSpan.FromMinutes(1);
                     queryCount = 0;
@@ -105,14 +106,9 @@ namespace QueryConsole
                 }
                 else
                 {
-                    var expectedHits = (int)((t / TimeSpan.FromMinutes(1)) * _queriesPerMinute + 1);
+                    var expectedTime = TimeSpan.FromMinutes(1) * queryCount / _queriesPerMinute;
 
-                    if (expectedHits <= queryCount)
-                    {
-                        var nextT = queryCount * TimeSpan.FromMinutes(1) / _queriesPerMinute;
-
-                        await WaitUntilAsync(nextT - t);
-                    }
+                    await WaitUntilAsync(expectedTime - t);
                 }
             }
         }
