@@ -47,12 +47,12 @@ namespace BenchmarkLib
                 : await ExtractReferencedValueAsync(template, engineClient, ct);
             var generateIdsReplacements = ExtractGenerateId(template);
             var generateWeightedLabelsReplacements = ExtractGenerateWeightedLabels(template);
-            var r = timestampNowReplacements
+            var replacements = timestampNowReplacements
                 .Concat(referencedValueReplacements)
                 .Concat(generateIdsReplacements)
                 .Concat(generateWeightedLabelsReplacements);
 
-            return CompileGenerators(template, r);
+            return CompileGenerators(template, replacements);
         }
 
         private static IEnumerable<Func<string>> CompileGenerators(
