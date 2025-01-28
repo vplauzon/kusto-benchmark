@@ -25,12 +25,6 @@ namespace EventHubConsole
 
         [Option(
             'r',
-            "rate",
-            Required = false,
-            HelpText = "Set the rate (in MBs/minute)")]
-        public long Rate { get; set; } = 10;
-
-        [Option(
             "records-per-payload",
             Required = false,
             HelpText = "Set the records per payload")]
@@ -59,7 +53,6 @@ namespace EventHubConsole
 Fqdn:  {Fqdn}
 EventHub:  {EventHub}
 Template Text:  {TemplateText}
-Rate (MBs/minute):  {Rate}
 RecordsPerPayload:  {RecordsPerPayload}
 BatchSize:  {BatchSize}
 Authentication:  {Authentication}

@@ -16,7 +16,6 @@ namespace EventHubConsole
 
         private readonly ExpressionGenerator _generator;
         private readonly EventHubProducerClient _eventHubProducerClient;
-        private readonly long _rate;
         private readonly int _recordsPerPayload;
         private readonly int _batchSize;
         private readonly ConcurrentQueue<MemoryStream> _streamQueue;
@@ -26,14 +25,12 @@ namespace EventHubConsole
         private EventHubOrchestration(
             ExpressionGenerator generator,
             EventHubProducerClient eventHubProducerClient,
-            long rate,
             int recordsPerPayload,
             int batchSize,
             int parallelPartitions)
         {
             _generator = generator;
             _eventHubProducerClient = eventHubProducerClient;
-            _rate = rate;
             _recordsPerPayload = recordsPerPayload;
             _batchSize = batchSize;
             _streamQueue = new(Enumerable
@@ -56,7 +53,6 @@ namespace EventHubConsole
             return new EventHubOrchestration(
                 generator,
                 eventHubProducerClient,
-                options.Rate,
                 options.RecordsPerPayload,
                 options.BatchSize,
                 options.ParallelPartitions);
