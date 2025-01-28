@@ -9,6 +9,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "QueryConsole", "QueryConsol
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BenchmarkLib", "BenchmarkLib\BenchmarkLib.csproj", "{89E1082E-4422-45AB-AEF6-9B846B84B35E}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EventHubConsole", "EventHubConsole\EventHubConsole.csproj", "{811357FB-5EBA-4C3D-9940-571F3FAAD01E}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -27,6 +29,10 @@ Global
 		{89E1082E-4422-45AB-AEF6-9B846B84B35E}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{89E1082E-4422-45AB-AEF6-9B846B84B35E}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{89E1082E-4422-45AB-AEF6-9B846B84B35E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{811357FB-5EBA-4C3D-9940-571F3FAAD01E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{811357FB-5EBA-4C3D-9940-571F3FAAD01E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{811357FB-5EBA-4C3D-9940-571F3FAAD01E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{811357FB-5EBA-4C3D-9940-571F3FAAD01E}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

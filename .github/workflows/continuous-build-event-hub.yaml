@@ -1,4 +1,4 @@
-name:  Query Continuous Build
+name:  Event Hub Continuous Build
 
 on:
   workflow_dispatch:
@@ -13,8 +13,8 @@ permissions:
   contents: read
 
 env:
-  folder:  Query
-  repo:  query
+  folder:  EventHub
+  repo:  event-hub
 
 jobs:
   main:

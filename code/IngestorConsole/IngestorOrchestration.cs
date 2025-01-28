@@ -1,86 +1,12 @@
-﻿using Azure.Core;
-using Azure.Identity;
-using System.Collections.Concurrent;
+﻿using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.IO.Compression;
 using BenchmarkLib;
 
 namespace IngestorConsole
 {
-    internal class IngestorOrchestration : IAsyncDisposable
+    internal partial class IngestorOrchestration : IAsyncDisposable
     {
-        #region Inner types
-        private class MetricWriter
-        {
-            #region Inner types
-            private record Metric(
-                DateTime Timestamp,
-                TimeSpan Duration,
-                long UncompressedSize,
-                long CompressedSize,
-                long RowCount);
-            #endregion
-
-            private static readonly TimeSpan PERIOD = TimeSpan.FromSeconds(10);
-            private readonly ConcurrentQueue<Metric> _metrics = new();
-            private readonly object _lock = new object();
-            private DateTime _blockStart = DateTime.Now;
-
-            public void Write(
-                TimeSpan duration,
-                long uncompressedSize,
-                long compressedSize,
-                long rowCount)
-            {
-                bool blockComplete = false;
-
-                lock (_lock)
-                {
-                    if (!_metrics.Any())
-                    {
-                        _blockStart = DateTime.Now;
-                    }
-                    if (DateTime.Now.Subtract(_blockStart) > PERIOD)
-                    {
-                        blockComplete = true;
-                    }
-                }
-                _metrics.Enqueue(new Metric(
-                    DateTime.Now,
-                    duration,
-                    uncompressedSize,
-                    compressedSize,
-                    rowCount));
-                if (blockComplete)
-                {
-                    ExportMetrics();
-                }
-            }
-
-            private void ExportMetrics()
-            {
-                var list = new List<Metric>();
-
-                while (_metrics.TryDequeue(out var metric))
-                {
-                    list.Add(metric);
-                }
-
-                var startDate = list.Min(m => m.Timestamp);
-                var startDateText = startDate.ToString("yyyy-MM-dd HH:mm:ss.ffff");
-                var maxLatency = list.Max(m => m.Duration);
-                var uncompressedSize = list.Sum(m => m.UncompressedSize);
-                var compressedSize = list.Sum(m => m.CompressedSize);
-                var rowCount = list.Sum(m => m.RowCount);
-
-                Console.WriteLine(
-                    $"#metric# Timestamp={startDateText}, Uncompressed={uncompressedSize}, "
-                    + $"Compressed={compressedSize}, MaxLatency={maxLatency}, "
-                    + $"RowCount={rowCount}, BlobCount={list.Count}");
-            }
-        }
-        #endregion
-
         private readonly ExpressionGenerator _generator;
         private readonly KustoEngineClient _kustoEngineClient;
         private readonly KustoIngestClient _kustoIngestClient;
@@ -113,7 +39,7 @@ namespace IngestorConsole
             CommandLineOptions options,
             CancellationToken ct)
         {
-            var credentials = CreateCredentials(options.Authentication);
+            var credentials = CredentialFactory.CreateCredentials(options.Authentication);
             var kustoEngineClient = new KustoEngineClient(options.DbUri, credentials);
             var kustoIngestClient = new KustoIngestClient(
                 options.DbUri,
@@ -131,19 +57,6 @@ namespace IngestorConsole
                 options.RowCount,
                 options.ParallelStreams);
         }
-
-        private static TokenCredential CreateCredentials(string authentication)
-        {
-            if (string.IsNullOrWhiteSpace(authentication)
-                || string.Compare(authentication.Trim(), "azcli", true) == 0)
-            {
-                return new DefaultAzureCredential();
-            }
-            else
-            {
-                return new ManagedIdentityCredential();
-            }
-        }
         #endregion
 
         async ValueTask IAsyncDisposable.DisposeAsync()
@@ -153,7 +66,7 @@ namespace IngestorConsole
 
         public async Task ProcessAsync(CancellationToken ct)
         {
-            var metricWriter = new MetricWriter();
+            var metricWriter = new IngestionMetricWriter();
 
             while (!ct.IsCancellationRequested)
             {
@@ -193,7 +106,7 @@ namespace IngestorConsole
         }
 
         private async Task UploadDataAsync(
-            MetricWriter metricWriter,
+            IngestionMetricWriter metricWriter,
             MemoryStream stream,
             Stopwatch stopwatch,
             long uncompressedSize,
