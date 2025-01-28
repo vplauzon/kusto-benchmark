@@ -28,7 +28,7 @@ namespace BenchmarkLib
 
         public static async Task<ExpressionGenerator> CreateAsync(
             string template,
-            KustoEngineClient engineClient,
+            KustoEngineClient? engineClient,
             CancellationToken ct)
         {
             var generators = await CompileGeneratorsAsync(template, engineClient, ct);
@@ -38,12 +38,13 @@ namespace BenchmarkLib
 
         private static async Task<IEnumerable<Func<string>>> CompileGeneratorsAsync(
             string template,
-            KustoEngineClient engineClient,
+            KustoEngineClient? engineClient,
             CancellationToken ct)
         {
             var timestampNowReplacements = ExtractTimestampNow(template);
-            var referencedValueReplacements =
-                await ExtractReferencedValueAsync(template, engineClient, ct);
+            var referencedValueReplacements = engineClient == null
+                ? Array.Empty<TemplateReplacement>()
+                : await ExtractReferencedValueAsync(template, engineClient, ct);
             var generateIdsReplacements = ExtractGenerateId(template);
             var generateWeightedLabelsReplacements = ExtractGenerateWeightedLabels(template);
             var r = timestampNowReplacements
