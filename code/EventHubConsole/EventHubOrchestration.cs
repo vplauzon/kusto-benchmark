@@ -27,7 +27,7 @@ namespace EventHubConsole
         {
             var credentials = CreateCredentials(options.Authentication);
             var template = options.TemplateText;
-            var generator = await ExpressionGenerator.CreateAsync(template, kustoEngineClient, ct);
+            var generator = await ExpressionGenerator.CreateAsync(template, null, ct);
 
             return new EventHubOrchestration(generator);
         }
