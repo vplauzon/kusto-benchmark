@@ -31,7 +31,6 @@ namespace EventHubConsole
         public long Rate { get; set; } = 10;
 
         [Option(
-            'p',
             "records-per-payload",
             Required = false,
             HelpText = "Set the records per payload")]
@@ -43,6 +42,13 @@ namespace EventHubConsole
             Required = false,
             HelpText = "Set the batch size")]
         public int BatchSize { get; set; } = 5;
+
+        [Option(
+            'p',
+            "parallel-partitions",
+            Required = false,
+            HelpText = "Set the number of parallel partitions written to")]
+        public int ParallelPartitions { get; set; } = 1;
 
         [Option('a', "auth", Required = false, HelpText = "Set authentication method:  'AzCli' or 'System'")]
         public string Authentication { get; set; } = string.Empty;

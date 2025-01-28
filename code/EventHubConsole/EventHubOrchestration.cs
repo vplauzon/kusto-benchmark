@@ -4,6 +4,7 @@ using BenchmarkLib;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.IO.Compression;
 using System.Text;
 
@@ -18,7 +19,8 @@ namespace EventHubConsole
         private readonly long _rate;
         private readonly int _recordsPerPayload;
         private readonly int _batchSize;
-        private readonly ConcurrentQueue<Task> _queryTaskQueue = new();
+        private readonly ConcurrentQueue<MemoryStream> _streamQueue;
+        private readonly ConcurrentQueue<Task> _sendTaskQueue = new();
 
         #region Constructors
         private EventHubOrchestration(
@@ -26,13 +28,17 @@ namespace EventHubConsole
             EventHubProducerClient eventHubProducerClient,
             long rate,
             int recordsPerPayload,
-            int batchSize)
+            int batchSize,
+            int parallelPartitions)
         {
             _generator = generator;
             _eventHubProducerClient = eventHubProducerClient;
             _rate = rate;
             _recordsPerPayload = recordsPerPayload;
             _batchSize = batchSize;
+            _streamQueue = new(Enumerable
+                .Range(0, parallelPartitions)
+                .Select(i => new MemoryStream()));
         }
 
         public static async Task<EventHubOrchestration> CreateAsync(
@@ -52,24 +58,38 @@ namespace EventHubConsole
                 eventHubProducerClient,
                 options.Rate,
                 options.RecordsPerPayload,
-                options.BatchSize);
+                options.BatchSize,
+                options.ParallelPartitions);
         }
         #endregion
 
         async ValueTask IAsyncDisposable.DisposeAsync()
         {
             await _eventHubProducerClient.DisposeAsync();
+            await Task.WhenAll(_sendTaskQueue);
         }
 
         public async Task ProcessAsync(CancellationToken ct)
         {
             var metricWriter = new IngestionMetricWriter();
 
-            using (var stream = new MemoryStream())
+            while (!ct.IsCancellationRequested)
             {
-                while (!ct.IsCancellationRequested)
+                while (!_streamQueue.Any())
                 {
-                    await SendBatchAsync(stream, metricWriter, ct);
+                    if (_sendTaskQueue.TryDequeue(out var sendTask))
+                    {
+                        await sendTask;
+                    }
+                    else
+                    {
+                        throw new InvalidOperationException(
+                            "There should be sends since there are no stream");
+                    }
+                }
+                if (_streamQueue.TryDequeue(out var stream))
+                {
+                    _sendTaskQueue.Enqueue(SendBatchAsync(stream, metricWriter, ct));
                 }
             }
         }
@@ -116,6 +136,7 @@ namespace EventHubConsole
                 // Send the batch of events
                 await _eventHubProducerClient.SendAsync(eventBatch);
 
+                _streamQueue.Enqueue(compressedStream);
                 metricWriter.Write(
                     stopwatch.Elapsed,
                     uncompressedVolume,

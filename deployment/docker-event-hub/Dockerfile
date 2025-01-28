@@ -8,4 +8,4 @@ WORKDIR /work
 COPY . .
 
 #	Run console app
-CMD ["sh", "-c", "dotnet EventHubConsole.dll -l $sourceLevel -a $authentication -f $fqdn -e $eventHub -t $template -r $rate -p $recordsPerPayload -b $batchSize"]
+CMD ["sh", "-c", "dotnet EventHubConsole.dll -l $sourceLevel -a $authentication -f $fqdn -e $eventHub -t $template -r $rate --records-per-payload $recordsPerPayload -b $batchSize -p $parallelPartitions"]
