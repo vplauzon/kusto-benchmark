@@ -67,7 +67,10 @@ namespace EventHubConsole
         {
             using (var stream = new MemoryStream())
             {
-                var volume = await SendBatchAsync(stream, ct);
+                while (!ct.IsCancellationRequested)
+                {
+                    var volume = await SendBatchAsync(stream, ct);
+                }
             }
         }
 
