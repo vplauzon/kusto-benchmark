@@ -1,9 +1,6 @@
-﻿using Azure.Core;
-using Azure.Identity;
-using Azure.Messaging.EventHubs;
+﻿using Azure.Messaging.EventHubs;
 using Azure.Messaging.EventHubs.Producer;
 using BenchmarkLib;
-using Microsoft.Identity.Client.Platforms.Features.DesktopOs.Kerberos;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO.Compression;
