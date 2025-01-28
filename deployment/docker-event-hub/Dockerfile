@@ -8,4 +8,4 @@ WORKDIR /work
 COPY . .
 
 #	Run console app
-CMD ["sh", "-c", "dotnet IngestorConsole.dll -d $dbUri -i $ingestionTable -t $templateName -r $rowCount -a $authentication -l $sourceLevel -m $mapping -p $parallelStream"]
+CMD ["sh", "-c", "dotnet EventHubConsole.dll -l $sourceLevel -a $authentication -f $fqdn -e $eventHub -t $template -r $rate -p $recordsPerPayload -b $batchSize"]
