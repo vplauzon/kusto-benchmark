@@ -50,8 +50,12 @@ namespace EventHubConsole
         public override string ToString()
         {
             return $@"
+Fqdn:  {Fqdn}
+EventHub:  {EventHub}
 Template Text:  {TemplateText}
 Rate (MBs/minute):  {Rate}
+RecordsPerPayload:  {RecordsPerPayload}
+BatchSize:  {BatchSize}
 Authentication:  {Authentication}
 Source level:  {SourceLevel}";
         }
