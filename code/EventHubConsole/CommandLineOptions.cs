@@ -24,6 +24,13 @@ namespace EventHubConsole
             HelpText = "Set the rate (in MBs/minute)")]
         public long Rate { get; set; } = 10;
 
+        [Option(
+            'p',
+            "records-per-payload",
+            Required = false,
+            HelpText = "Set the records per payload")]
+        public int RecordsPerPayload { get; set; } = 5;
+
         [Option('a', "auth", Required = false, HelpText = "Set authentication method:  'AzCli' or 'System'")]
         public string Authentication { get; set; } = string.Empty;
 

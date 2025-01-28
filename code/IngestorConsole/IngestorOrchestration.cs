@@ -113,7 +113,7 @@ namespace IngestorConsole
             CommandLineOptions options,
             CancellationToken ct)
         {
-            var credentials = CreateCredentials(options.Authentication);
+            var credentials = CredentialFactory.CreateCredentials(options.Authentication);
             var kustoEngineClient = new KustoEngineClient(options.DbUri, credentials);
             var kustoIngestClient = new KustoIngestClient(
                 options.DbUri,
@@ -130,19 +130,6 @@ namespace IngestorConsole
                 kustoIngestClient,
                 options.RowCount,
                 options.ParallelStreams);
-        }
-
-        private static TokenCredential CreateCredentials(string authentication)
-        {
-            if (string.IsNullOrWhiteSpace(authentication)
-                || string.Compare(authentication.Trim(), "azcli", true) == 0)
-            {
-                return new DefaultAzureCredential();
-            }
-            else
-            {
-                return new ManagedIdentityCredential();
-            }
         }
         #endregion
 

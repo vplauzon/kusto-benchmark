@@ -39,25 +39,12 @@ namespace QueryConsole
             CommandLineOptions options,
             CancellationToken ct)
         {
-            var credentials = CreateCredentials(options.Authentication);
+            var credentials = CredentialFactory.CreateCredentials(options.Authentication);
             var kustoEngineClient = new KustoEngineClient(options.DbUri, credentials);
             var template = await kustoEngineClient.FetchTemplateAsync(options.TemplateName, ct);
             var generator = await ExpressionGenerator.CreateAsync(template, kustoEngineClient, ct);
 
             return new QueryOrchestration(generator, kustoEngineClient, options.QueriesPerMinute);
-        }
-
-        private static TokenCredential CreateCredentials(string authentication)
-        {
-            if (string.IsNullOrWhiteSpace(authentication)
-                || string.Compare(authentication.Trim(), "azcli", true) == 0)
-            {
-                return new DefaultAzureCredential();
-            }
-            else
-            {
-                return new ManagedIdentityCredential();
-            }
         }
         #endregion
 
