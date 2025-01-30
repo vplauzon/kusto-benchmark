@@ -129,6 +129,10 @@ namespace EventHubConsole
                             rowCount += payloadRowCount;
                             compressedVolume += outputStream.Length;
                         }
+                        else
+                        {
+                            Console.WriteLine($"Can't add event #{i} to batch");
+                        }
                     }
                 }
 
