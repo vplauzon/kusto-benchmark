@@ -10,6 +10,9 @@ namespace EventHubConsole
         [Option('l', "source-level", Required = false, HelpText = "Set source level")]
         public string SourceLevel { get; set; } = "warning";
 
+        [Option('a', "auth", Required = false, HelpText = "Set authentication method:  'AzCli' or 'System'")]
+        public string Authentication { get; set; } = string.Empty;
+
         [Option('f', "fqdn", Required = false, HelpText = "Set the fully qualified domain name (FQDN)")]
         public string Fqdn { get; set; } = string.Empty;
 
@@ -50,9 +53,6 @@ namespace EventHubConsole
             Required = false,
             HelpText = "Set the output compression (true / false)")]
         public bool? IsOutputCompressed { get; set; } = true;
-
-        [Option('a', "auth", Required = false, HelpText = "Set authentication method:  'AzCli' or 'System'")]
-        public string Authentication { get; set; } = string.Empty;
 
         public override string ToString()
         {
