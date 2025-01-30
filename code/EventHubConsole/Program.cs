@@ -24,6 +24,7 @@ namespace EventHubConsole
             Console.WriteLine($"Kusto Query Console {AssemblyVersion}");
             Console.WriteLine();
             Console.WriteLine($"Command line:  {string.Join(" ", args)}");
+            Console.Out.Flush();
 
             return await ProgramHelper.RunAsync<CommandLineOptions>(args, RunOptionsAsync);
         }
