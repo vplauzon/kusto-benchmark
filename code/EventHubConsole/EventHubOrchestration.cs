@@ -4,7 +4,6 @@ using BenchmarkLib;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.IO;
 using System.IO.Compression;
 using System.Text;
 
@@ -18,6 +17,7 @@ namespace EventHubConsole
         private readonly EventHubProducerClient _eventHubProducerClient;
         private readonly int _recordsPerPayload;
         private readonly int _batchSize;
+        private readonly bool _isOutputCompressed;
         private readonly ConcurrentQueue<MemoryStream> _streamQueue;
         private readonly ConcurrentQueue<Task> _sendTaskQueue = new();
 
@@ -27,12 +27,14 @@ namespace EventHubConsole
             EventHubProducerClient eventHubProducerClient,
             int recordsPerPayload,
             int batchSize,
-            int parallelPartitions)
+            int parallelPartitions,
+            bool isOutputCompressed)
         {
             _generator = generator;
             _eventHubProducerClient = eventHubProducerClient;
             _recordsPerPayload = recordsPerPayload;
             _batchSize = batchSize;
+            _isOutputCompressed = isOutputCompressed;
             _streamQueue = new(Enumerable
                 .Range(0, parallelPartitions)
                 .Select(i => new MemoryStream()));
@@ -55,7 +57,8 @@ namespace EventHubConsole
                 eventHubProducerClient,
                 options.RecordsPerPayload,
                 options.BatchSize,
-                options.ParallelPartitions);
+                options.ParallelPartitions,
+                options.IsOutputCompressed!.Value);
         }
         #endregion
 
@@ -91,7 +94,7 @@ namespace EventHubConsole
         }
 
         private async Task SendBatchAsync(
-            MemoryStream compressedStream,
+            MemoryStream outputStream,
             IngestionMetricWriter metricWriter,
             CancellationToken ct)
         {
@@ -105,10 +108,10 @@ namespace EventHubConsole
                 stopwatch.Start();
                 for (var i = 0; i != _batchSize; ++i)
                 {
-                    compressedStream.SetLength(0);
-                    using (var compressingStream =
-                        new GZipStream(compressedStream, CompressionLevel.Fastest, true))
-                    using (var writer = new StreamWriter(compressingStream))
+                    var payloadStream = CreatePayloadStream(outputStream);
+
+                    outputStream.SetLength(0);
+                    using (var writer = new StreamWriter(payloadStream, leaveOpen:true))
                     {
                         long payloadUncompressedVolume = 0;
                         long payloadRowCount = 0;
@@ -120,11 +123,11 @@ namespace EventHubConsole
                             ++payloadRowCount;
                         }
                         writer.Flush();
-                        if (eventBatch.TryAdd(new EventData(compressedStream.ToArray())))
+                        if (eventBatch.TryAdd(new EventData(outputStream.ToArray())))
                         {
                             uncompressedVolume += payloadUncompressedVolume;
                             rowCount += payloadRowCount;
-                            compressedVolume += compressedStream.Length;
+                            compressedVolume += outputStream.Length;
                         }
                     }
                 }
@@ -132,13 +135,20 @@ namespace EventHubConsole
                 // Send the batch of events
                 await _eventHubProducerClient.SendAsync(eventBatch);
 
-                _streamQueue.Enqueue(compressedStream);
+                _streamQueue.Enqueue(outputStream);
                 metricWriter.Write(
                     stopwatch.Elapsed,
                     uncompressedVolume,
                     compressedVolume,
                     rowCount);
             }
+        }
+
+        private Stream CreatePayloadStream(MemoryStream outputStream)
+        {
+            return _isOutputCompressed
+                ? new GZipStream(outputStream, CompressionLevel.Fastest, true)
+                : outputStream;
         }
     }
 }

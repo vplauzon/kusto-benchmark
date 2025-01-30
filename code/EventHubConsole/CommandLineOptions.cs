@@ -44,6 +44,13 @@ namespace EventHubConsole
             HelpText = "Set the number of parallel partitions written to")]
         public int ParallelPartitions { get; set; } = 1;
 
+        [Option(
+            'c',
+            "compression",
+            Required = false,
+            HelpText = "Set the output compression (true / false)")]
+        public bool? IsOutputCompressed { get; set; } = true;
+
         [Option('a', "auth", Required = false, HelpText = "Set authentication method:  'AzCli' or 'System'")]
         public string Authentication { get; set; } = string.Empty;
 
@@ -55,6 +62,7 @@ EventHub:  {EventHub}
 Template Text:  {TemplateText}
 RecordsPerPayload:  {RecordsPerPayload}
 BatchSize:  {BatchSize}
+IsOutputCompressed:  {IsOutputCompressed}
 Authentication:  {Authentication}
 Source level:  {SourceLevel}";
         }

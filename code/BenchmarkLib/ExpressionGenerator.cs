@@ -95,7 +95,8 @@ namespace BenchmarkLib
                 yield return new TemplateReplacement(
                     index,
                     PATTERN.Length,
-                    () => DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss.ffff"));
+                    //() => DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss.ffff"));
+                    () => DateTime.UtcNow.ToString("o"));
                 index = template.IndexOf(PATTERN, index + PATTERN.Length);
             }
         }
