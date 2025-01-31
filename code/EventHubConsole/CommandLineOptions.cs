@@ -20,11 +20,18 @@ namespace EventHubConsole
         public string EventHub { get; set; } = string.Empty;
 
         [Option(
-            't',
-            "template-text",
+            'd',
+            "db-uri",
             Required = true,
-            HelpText = "Set the template text")]
-        public string TemplateText { get; set; } = string.Empty;
+            HelpText = "Set the db URI, e.g. https://mycluster.westus.kusto.windows.net/mydb/")]
+        public string DbUri { get; set; } = string.Empty;
+
+        [Option(
+            't',
+            "template-name",
+            Required = true,
+            HelpText = "Set the template name")]
+        public string TemplateName { get; set; } = string.Empty;
 
         [Option(
             'r',
@@ -59,7 +66,8 @@ namespace EventHubConsole
             return $@"
 Fqdn:  {Fqdn}
 EventHub:  {EventHub}
-Template Text:  {TemplateText}
+DbUri:  {DbUri}
+Template Name:  {TemplateName}
 RecordsPerPayload:  {RecordsPerPayload}
 BatchSize:  {BatchSize}
 IsOutputCompressed:  {IsOutputCompressed}

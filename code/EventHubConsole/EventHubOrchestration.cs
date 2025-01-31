@@ -11,8 +11,6 @@ namespace EventHubConsole
 {
     internal class EventHubOrchestration : IAsyncDisposable
     {
-        private static readonly TimeSpan PERIOD = TimeSpan.FromSeconds(10);
-
         private readonly ExpressionGenerator _generator;
         private readonly EventHubProducerClient _eventHubProducerClient;
         private readonly int _recordsPerPayload;
@@ -45,8 +43,9 @@ namespace EventHubConsole
             CancellationToken ct)
         {
             var credentials = CredentialFactory.CreateCredentials(options.Authentication);
-            var template = options.TemplateText;
-            var generator = await ExpressionGenerator.CreateAsync(template, null, ct);
+            var kustoEngineClient = new KustoEngineClient(options.DbUri, credentials);
+            var template = await kustoEngineClient.FetchTemplateAsync(options.TemplateName, ct);
+            var generator = await ExpressionGenerator.CreateAsync(template, kustoEngineClient, ct);
             var eventHubProducerClient = new EventHubProducerClient(
                 options.Fqdn,
                 options.EventHub,
