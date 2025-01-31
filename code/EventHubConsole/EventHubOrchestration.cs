@@ -69,7 +69,7 @@ namespace EventHubConsole
 
         public async Task ProcessAsync(CancellationToken ct)
         {
-            var metricWriter = new IngestionMetricWriter();
+            await using var metricWriter = new IngestionMetricWriter();
 
             while (!ct.IsCancellationRequested)
             {

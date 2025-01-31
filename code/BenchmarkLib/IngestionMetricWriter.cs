@@ -2,7 +2,7 @@
 
 namespace BenchmarkLib
 {
-    public class IngestionMetricWriter
+    public class IngestionMetricWriter : IAsyncDisposable
     {
         #region Inner types
         private record Metric(
@@ -13,10 +13,23 @@ namespace BenchmarkLib
             long RowCount);
         #endregion
 
-        private static readonly TimeSpan PERIOD = TimeSpan.FromSeconds(10);
+        private static readonly TimeSpan PERIOD = TimeSpan.FromSeconds(5);
         private readonly ConcurrentQueue<Metric> _metrics = new();
-        private readonly object _lock = new object();
-        private DateTime _blockStart = DateTime.Now;
+        private readonly CancellationTokenSource _cts = new CancellationTokenSource();
+        private readonly Task _backgroundTask;
+
+        #region Construction
+        public IngestionMetricWriter()
+        {
+            _backgroundTask = MonitorAsync(_cts.Token);
+        }
+        #endregion
+
+        async ValueTask IAsyncDisposable.DisposeAsync()
+        {
+            _cts.Cancel();
+            await _backgroundTask;
+        }
 
         public void Write(
             TimeSpan duration,
@@ -24,32 +37,24 @@ namespace BenchmarkLib
             long compressedSize,
             long rowCount)
         {
-            bool blockComplete = false;
-
-            lock (_lock)
-            {
-                if (!_metrics.Any())
-                {
-                    _blockStart = DateTime.Now;
-                }
-                if (DateTime.Now.Subtract(_blockStart) > PERIOD)
-                {
-                    blockComplete = true;
-                }
-            }
             _metrics.Enqueue(new Metric(
                 DateTime.Now,
                 duration,
                 uncompressedSize,
                 compressedSize,
                 rowCount));
-            if (blockComplete)
+        }
+
+        private async Task MonitorAsync(CancellationToken ct)
+        {
+            while (!ct.IsCancellationRequested)
             {
-                ExportMetrics();
+                await Task.Delay(PERIOD);
+                PublishMetrics();
             }
         }
 
-        private void ExportMetrics()
+        private void PublishMetrics()
         {
             var list = new List<Metric>();
 
@@ -57,18 +62,20 @@ namespace BenchmarkLib
             {
                 list.Add(metric);
             }
+            if (list.Any())
+            {
+                var startDate = list.Min(m => m.Timestamp);
+                var startDateText = startDate.ToString("yyyy-MM-dd HH:mm:ss.ffff");
+                var maxLatency = list.Max(m => m.Duration);
+                var uncompressedSize = list.Sum(m => m.UncompressedSize);
+                var compressedSize = list.Sum(m => m.CompressedSize);
+                var rowCount = list.Sum(m => m.RowCount);
 
-            var startDate = list.Min(m => m.Timestamp);
-            var startDateText = startDate.ToString("yyyy-MM-dd HH:mm:ss.ffff");
-            var maxLatency = list.Max(m => m.Duration);
-            var uncompressedSize = list.Sum(m => m.UncompressedSize);
-            var compressedSize = list.Sum(m => m.CompressedSize);
-            var rowCount = list.Sum(m => m.RowCount);
-
-            Console.WriteLine(
-                $"#metric# Timestamp={startDateText}, Uncompressed={uncompressedSize}, "
-                + $"Compressed={compressedSize}, MaxLatency={maxLatency}, "
-                + $"RowCount={rowCount}, BlobCount={list.Count}");
+                Console.WriteLine(
+                    $"#metric# Timestamp={startDateText}, Uncompressed={uncompressedSize}, "
+                    + $"Compressed={compressedSize}, MaxLatency={maxLatency}, "
+                    + $"RowCount={rowCount}, BlobCount={list.Count}");
+            }
         }
     }
 }
