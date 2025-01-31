@@ -21,12 +21,25 @@ namespace EventHubConsole
         internal static async Task<int> Main(string[] args)
         {
             Console.WriteLine();
-            Console.WriteLine($"Kusto Query Console {AssemblyVersion}");
+            Console.WriteLine($"Kusto Event Hub Console {AssemblyVersion}");
             Console.WriteLine();
             Console.WriteLine($"Command line:  {string.Join(" ", args)}");
             Console.Out.Flush();
 
-            return await ProgramHelper.RunAsync<CommandLineOptions>(args, RunOptionsAsync);
+            try
+            {
+                return await ProgramHelper.RunAsync<CommandLineOptions>(args, RunOptionsAsync);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Exception:  {ex.Message}");
+
+                return -1;
+            }
+            finally
+            {
+                Console.WriteLine("Exiting...");
+            }
         }
 
         private static async Task RunOptionsAsync(CommandLineOptions options)
