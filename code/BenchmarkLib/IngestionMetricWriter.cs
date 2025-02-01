@@ -13,7 +13,7 @@ namespace BenchmarkLib
             long RowCount);
         #endregion
 
-        private static readonly TimeSpan PERIOD = TimeSpan.FromSeconds(5);
+        private static readonly TimeSpan PERIOD = TimeSpan.FromSeconds(10);
         private readonly ConcurrentQueue<Metric> _metrics = new();
         private readonly CancellationTokenSource _cts = new CancellationTokenSource();
         private readonly Task _backgroundTask;
@@ -56,26 +56,36 @@ namespace BenchmarkLib
 
         private void PublishMetrics()
         {
-            var list = new List<Metric>();
+            var list = GetAllMetrics();
+            var metricsByMinute = list
+                .GroupBy(m => m.Timestamp.Minute);
 
-            while (_metrics.TryDequeue(out var metric))
+            foreach (var metrics in metricsByMinute)
             {
-                list.Add(metric);
-            }
-            if (list.Any())
-            {
-                var startDate = list.Min(m => m.Timestamp);
+                var startDate = metrics.Min(m => m.Timestamp);
                 var startDateText = startDate.ToString("yyyy-MM-dd HH:mm:ss.ffff");
-                var maxLatency = list.Max(m => m.Duration);
-                var uncompressedSize = list.Sum(m => m.UncompressedSize);
-                var compressedSize = list.Sum(m => m.CompressedSize);
-                var rowCount = list.Sum(m => m.RowCount);
+                var maxLatency = metrics.Max(m => m.Duration);
+                var uncompressedSize = metrics.Sum(m => m.UncompressedSize);
+                var compressedSize = metrics.Sum(m => m.CompressedSize);
+                var rowCount = metrics.Sum(m => m.RowCount);
 
                 Console.WriteLine(
                     $"#metric# Timestamp={startDateText}, Uncompressed={uncompressedSize}, "
                     + $"Compressed={compressedSize}, MaxLatency={maxLatency}, "
                     + $"RowCount={rowCount}, BlobCount={list.Count}");
             }
+        }
+
+        private List<Metric> GetAllMetrics()
+        {
+            var list = new List<Metric>();
+
+            while (_metrics.TryDequeue(out var metric))
+            {
+                list.Add(metric);
+            }
+
+            return list;
         }
     }
 }
