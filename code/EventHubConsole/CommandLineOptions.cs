@@ -55,6 +55,12 @@ namespace EventHubConsole
         public int ParallelPartitions { get; set; } = 1;
 
         [Option(
+            "throughput-target",
+            Required = false,
+            HelpText = "Set the throughput target, in MBs/minute")]
+        public int TargetThroughput { get; set; } = 100;
+
+        [Option(
             'c',
             "compression",
             Required = false,
@@ -70,6 +76,7 @@ DbUri:  {DbUri}
 Template Name:  {TemplateName}
 RecordsPerPayload:  {RecordsPerPayload}
 BatchSize:  {BatchSize}
+TargetThroughput (in MBs/minute):  {TargetThroughput}
 IsOutputCompressed:  {IsOutputCompressed}
 Authentication:  {Authentication}
 Source level:  {SourceLevel}";
