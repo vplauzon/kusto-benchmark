@@ -102,8 +102,8 @@ namespace EventHubConsole
 
                 if (deltaVolume > 0 && _streamQueue.TryDequeue(out var stream))
                 {
-                    var sendingOutput = await
-                        SendDataAsync(deltaVolume, stream, metricWriter, ct);
+                    var sendingOutput =
+                        await SendDataAsync(deltaVolume, stream, metricWriter, ct);
 
                     minuteVolume += sendingOutput.VolumeSent;
                     _sendTaskQueue.Enqueue(sendingOutput.SendingTask);
