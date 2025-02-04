@@ -53,10 +53,9 @@ namespace EventHubConsole
             var kustoEngineClient = new KustoEngineClient(options.DbUri, credentials);
             var template = await kustoEngineClient.FetchTemplateAsync(options.TemplateName, ct);
             var generator = await ExpressionGenerator.CreateAsync(template, kustoEngineClient, ct);
-            var eventHubProducerClient = new EventHubProducerClient(
-                options.Fqdn,
-                options.EventHub,
-                credentials);
+            var eventHubProducerClient = string.IsNullOrEmpty(options.EventHubConnectionString)
+                ? new EventHubProducerClient(options.Fqdn, options.EventHub, credentials)
+                : new EventHubProducerClient(options.EventHubConnectionString);
 
             return new EventHubOrchestration(
                 generator,

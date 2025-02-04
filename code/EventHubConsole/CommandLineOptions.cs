@@ -1,6 +1,7 @@
 ﻿using CommandLine;
 using System;
 using System.Collections.Generic;
+using System.Net;
 using System.Text;
 
 namespace EventHubConsole
@@ -18,6 +19,9 @@ namespace EventHubConsole
 
         [Option('e', "event-hub", Required = false, HelpText = "Set the event hub")]
         public string EventHub { get; set; } = string.Empty;
+
+        [Option("event-hub-connection-string", Required = false, HelpText = "Set the event hub connection string")]
+        public string EventHubConnectionString { get; set; } = string.Empty;
 
         [Option(
             'd',
@@ -72,6 +76,7 @@ namespace EventHubConsole
             return $@"
 Fqdn:  {Fqdn}
 EventHub:  {EventHub}
+Event Hub connection string:  {EventHubConnectionString}
 DbUri:  {DbUri}
 Template Name:  {TemplateName}
 RecordsPerPayload:  {RecordsPerPayload}
