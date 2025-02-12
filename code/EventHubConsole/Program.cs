@@ -1,5 +1,7 @@
-﻿using BenchmarkLib;
+﻿using Azure.Core.Diagnostics;
+using BenchmarkLib;
 using System.Diagnostics;
+using System.Diagnostics.Tracing;
 
 namespace EventHubConsole
 {
@@ -20,6 +22,8 @@ namespace EventHubConsole
 
         internal static async Task<int> Main(string[] args)
         {
+            using var listener = CreateAzureEventSourceListener();
+
             Console.WriteLine();
             Console.WriteLine($"Kusto Event Hub Console {AssemblyVersion}");
             Console.WriteLine();
@@ -40,6 +44,23 @@ namespace EventHubConsole
             {
                 Console.WriteLine("Exiting...");
             }
+        }
+
+        private static AzureEventSourceListener CreateAzureEventSourceListener()
+        {
+            var listener = new AzureEventSourceListener(
+                (eventArgs, message) =>
+                {
+                    if (eventArgs.EventSource.Name.Contains("Azure-Messaging-EventHubs")
+                    && message.Contains("ServiceBusy"))
+                    {
+                        Console.WriteLine($"⚠️ THROTTLING DETECTED: {message}");
+                    }
+                },
+                // Only log warnings and above
+                EventLevel.Warning);
+
+            return listener;
         }
 
         private static async Task RunOptionsAsync(CommandLineOptions options)
