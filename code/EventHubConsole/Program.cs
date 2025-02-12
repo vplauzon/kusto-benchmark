@@ -51,11 +51,7 @@ namespace EventHubConsole
             var listener = new AzureEventSourceListener(
                 (eventArgs, message) =>
                 {
-                    if (eventArgs.EventSource.Name.Contains("Azure-Messaging-EventHubs")
-                    && message.Contains("ServiceBusy"))
-                    {
-                        Console.WriteLine($"⚠️ THROTTLING DETECTED: {message}");
-                    }
+                    Console.WriteLine($"Warning: {message}");
                 },
                 // Only log warnings and above
                 EventLevel.Warning);
