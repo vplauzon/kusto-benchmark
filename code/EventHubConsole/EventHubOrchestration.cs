@@ -89,11 +89,7 @@ namespace EventHubConsole
                 {
                     Console.WriteLine(
                         $"In {minuteWatch.Elapsed}, we sent {minuteVolume / 1000000} MBs");
-                    minuteVolume -= GetTargetVolume(minuteWatch.Elapsed);
-                    if (minuteVolume < -1000000000)
-                    {
-                        Console.WriteLine($"Can't keep up, volume is {minuteVolume}");
-                    }
+                    minuteVolume = 0;
                     minuteWatch.Restart();
                 }
 
