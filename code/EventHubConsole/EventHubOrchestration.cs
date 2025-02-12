@@ -153,7 +153,6 @@ namespace EventHubConsole
                     for (var j = 0; j != _recordsPerPayload; ++j)
                     {
                         payloadUncompressedVolume += _generator.GenerateExpression(writer);
-                        writer.WriteLine();
                         ++payloadRowCount;
                     }
                     writer.Flush();
