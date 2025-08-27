@@ -142,32 +142,34 @@ namespace EventHubConsole
             stopwatch.Start();
             for (var i = 0; (i != _batchSize && uncompressedVolume < targetVolume); ++i)
             {
-                var payloadStream = CreatePayloadStream(outputStream);
+                Stream payloadStream = _isOutputCompressed
+                    ? new GZipStream(outputStream, CompressionLevel.Fastest, true)
+                    : outputStream;
+                long payloadUncompressedVolume = 0;
+                long payloadRowCount = 0;
 
                 outputStream.SetLength(0);
                 using (var writer = new StreamWriter(payloadStream, leaveOpen: true))
                 {
-                    long payloadUncompressedVolume = 0;
-                    long payloadRowCount = 0;
-
                     for (var j = 0; j != _recordsPerPayload; ++j)
                     {
                         payloadUncompressedVolume += _generator.GenerateExpression(writer);
                         ++payloadRowCount;
                     }
-                    writer.Flush();
-                    payloadStream.Flush();
-                    outputStream.Flush();
-                    if (eventBatch.TryAdd(new EventData(outputStream.ToArray())))
-                    {
-                        uncompressedVolume += payloadUncompressedVolume;
-                        rowCount += payloadRowCount;
-                        compressedVolume += outputStream.Length;
-                    }
-                    else
-                    {
-                        Console.WriteLine($"Can't add event #{i} to batch");
-                    }
+                }
+                if(_isOutputCompressed)
+                {
+                    payloadStream.Dispose();
+                }
+                if (eventBatch.TryAdd(new EventData(outputStream.ToArray())))
+                {
+                    uncompressedVolume += payloadUncompressedVolume;
+                    rowCount += payloadRowCount;
+                    compressedVolume += outputStream.Length;
+                }
+                else
+                {
+                    Console.WriteLine($"Can't add event #{i} to batch");
                 }
             }
 
@@ -187,13 +189,6 @@ namespace EventHubConsole
             await _eventHubProducerClient.SendAsync(eventBatch);
             eventBatch.Dispose();
             _streamQueue.Enqueue(outputStream);
-        }
-
-        private Stream CreatePayloadStream(MemoryStream outputStream)
-        {
-            return _isOutputCompressed
-                ? new GZipStream(outputStream, CompressionLevel.Fastest, true)
-                : outputStream;
         }
     }
 }
