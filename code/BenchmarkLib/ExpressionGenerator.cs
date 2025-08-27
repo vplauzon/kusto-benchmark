@@ -47,6 +47,7 @@ namespace BenchmarkLib
                 : await ExtractReferencedValueAsync(template, engineClient, ct);
             var generateIdsReplacements = ExtractGenerateId(template);
             var generateWeightedLabelsReplacements = ExtractGenerateWeightedLabels(template);
+            var randomRealReplacements = ExtractRandomReal(template);
             var replacements = timestampNowReplacements
                 .Concat(referencedValueReplacements)
                 .Concat(generateIdsReplacements)
@@ -161,6 +162,30 @@ namespace BenchmarkLib
                 {
                     var number = _random.Next(totalWeight);
                     var label = cummulativeComponents.Where(c => c.Threshold > number).First().Label;
+
+                    return label;
+                };
+
+                yield return new TemplateReplacement(
+                    match.Index,
+                    match.Length,
+                    generator);
+                match = match.NextMatch();
+            }
+        }
+
+        private static IEnumerable<TemplateReplacement> ExtractRandomReal(string template)
+        {
+            var match = Regex.Match(template, @"GenerateRealRandom\(\s*(\d+)\s*,\s*(\d+)\s*\)");
+
+            while (match.Success)
+            {
+                var min = int.Parse(match.Groups[1].Value);
+                var max = int.Parse(match.Groups[2].Value);
+                Func<string> generator = () =>
+                {
+                    var number = _random.NextDouble() * (max - min) + min;
+                    var label = number.ToString();
 
                     return label;
                 };
