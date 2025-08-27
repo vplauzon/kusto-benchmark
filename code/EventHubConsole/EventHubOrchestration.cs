@@ -157,6 +157,7 @@ namespace EventHubConsole
                     }
                     writer.Flush();
                     payloadStream.Flush();
+                    outputStream.Flush();
                     if (eventBatch.TryAdd(new EventData(outputStream.ToArray())))
                     {
                         uncompressedVolume += payloadUncompressedVolume;
