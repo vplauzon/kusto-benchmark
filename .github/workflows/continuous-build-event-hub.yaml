@@ -59,7 +59,8 @@ jobs:
       run:  |
         az acr build --image "${repo}/dev:${{ steps.patch-version.outputs.full-version }}" \
           --registry ${{ vars.REGISTRY_NAME }} \
-          --file deployment/docker-${repo}/Dockerfile bin
+          --file deployment/docker-${repo}/Dockerfile bin \
+          --auth-mode ManagedIdentity
     - name:  Docker tag latest
       run:  |
         az acr import --source "${repo}/dev:${{ steps.patch-version.outputs.full-version }}" \
