@@ -15,7 +15,8 @@ namespace BenchmarkLib
             if (string.IsNullOrWhiteSpace(authentication)
                 || string.Compare(authentication.Trim(), "azcli", true) == 0)
             {
-                return new DefaultAzureCredential();
+                return new AzureCliCredential();
+                //return new DefaultAzureCredential();
             }
             else
             {
