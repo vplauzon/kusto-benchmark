@@ -45,13 +45,15 @@ namespace BenchmarkLib
             var referencedValueReplacements = engineClient == null
                 ? Array.Empty<TemplateReplacement>()
                 : await ExtractReferencedValueAsync(template, engineClient, ct);
-            var generateIdsReplacements = ExtractGenerateId(template);
-            var generateWeightedLabelsReplacements = ExtractGenerateWeightedLabels(template);
+            var generateIdReplacements = ExtractGenerateId(template);
+            var generateStringReplacements = ExtractGenerateString(template);
+            var generateWeightedLabelReplacements = ExtractGenerateWeightedLabel(template);
             var generateRandomRealReplacements = ExtractRandomReal(template);
             var replacements = timestampNowReplacements
                 .Concat(referencedValueReplacements)
-                .Concat(generateIdsReplacements)
-                .Concat(generateWeightedLabelsReplacements)
+                .Concat(generateIdReplacements)
+                .Concat(generateStringReplacements)
+                .Concat(generateWeightedLabelReplacements)
                 .Concat(generateRandomRealReplacements);
 
             return CompileGenerators(template, replacements);
@@ -136,9 +138,32 @@ namespace BenchmarkLib
             }
         }
 
-        private static IEnumerable<TemplateReplacement> ExtractGenerateWeightedLabels(string template)
+        private static IEnumerable<TemplateReplacement> ExtractGenerateString(string template)
         {
-            var match = Regex.Match(template, @"GenerateWeightedLabels\(([^)]+)\)");
+            var match = Regex.Match(template, @"GenerateString\s*\(\s*(\d+)\s*\)");
+
+            while (match.Success)
+            {
+                var textLength = int.Parse(match.Groups[1].Value);
+
+                yield return new TemplateReplacement(
+                    match.Index,
+                    match.Length,
+                    () =>
+                    {
+                        var characters = Enumerable.Range(0, textLength)
+                            .Select(i => (char)(_random.Next(26) + 'A'));
+                        var text = new string(characters.ToArray());
+
+                        return text;
+                    });
+                match = match.NextMatch();
+            }
+        }
+
+        private static IEnumerable<TemplateReplacement> ExtractGenerateWeightedLabel(string template)
+        {
+            var match = Regex.Match(template, @"GenerateWeightedLabel\(([^)]+)\)");
 
             while (match.Success)
             {
