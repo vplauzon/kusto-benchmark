@@ -20,7 +20,7 @@ namespace BenchmarkLib
             }
             else
             {
-                return new ManagedIdentityCredential();
+                return new ManagedIdentityCredential(new ManagedIdentityCredentialOptions());
             }
         }
     }
