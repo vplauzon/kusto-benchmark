@@ -77,7 +77,8 @@ Template
                 query,
                 DEFAULT_PROPERTIES,
                 ct);
-            var template = (string)reader.ToDataSet().Tables[0].Rows[0][0];
+            var table = reader.ToDataSet().Tables[0];
+            var template = (string)table.Rows[0][0];
 
             return template;
         }
