@@ -80,6 +80,7 @@ Event Hub connection string:  {EventHubConnectionString}
 DbUri:  {DbUri}
 Template Name:  {TemplateName}
 RecordsPerPayload:  {RecordsPerPayload}
+ParallelPartitions:  {ParallelPartitions}
 BatchSize:  {BatchSize}
 TargetThroughput (in MBs/minute):  {TargetThroughput}
 IsOutputCompressed:  {IsOutputCompressed}
