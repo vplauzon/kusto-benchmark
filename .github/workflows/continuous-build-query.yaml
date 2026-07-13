@@ -18,6 +18,7 @@ env:
 
 jobs:
   main:
+    if: false
     runs-on: ubuntu-latest
     environment:  dev
     
@@ -46,13 +47,13 @@ jobs:
         mkdir bin
         cp -r code/${folder}Console/bin/Release/net*/* bin
 
-    - name: Log into ACR
-      run: |
-        echo "${{ secrets.ACR_PASSWORD }}" | docker login myacr.azurecr.io \
-        4
-        --username ${{ secrets.ACR_USERNAME }} \
-        5
-        --password-stdin
+    # Using the user MI as exposed in https://yourazurecoach.com/2022/12/29/use-github-actions-with-user-assigned-managed-identity/
+    - name: Log into Azure
+      uses: azure/login@v1
+      with:
+        client-id: ${{ secrets.AZURE_CLIENT_ID }}
+        tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+        subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
     
     # See https://learn.microsoft.com/en-us/azure/container-registry/container-registry-quickstart-task-cli
     - name:  Docker Build / Push container
