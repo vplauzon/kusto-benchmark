@@ -1,6 +1,5 @@
 ﻿using CommandLine;
 using CommandLine.Text;
-using Kusto.Data.DataProvider;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
