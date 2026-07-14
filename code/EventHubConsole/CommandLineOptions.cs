@@ -44,20 +44,6 @@ namespace EventHubConsole
         public int RecordsPerPayload { get; set; } = 5;
 
         [Option(
-            'b',
-            "batch-size",
-            Required = false,
-            HelpText = "Set the batch size")]
-        public int BatchSize { get; set; } = 5;
-
-        [Option(
-            'p',
-            "parallel-partitions",
-            Required = false,
-            HelpText = "Set the number of parallel partitions written to")]
-        public int ParallelPartitions { get; set; } = 1;
-
-        [Option(
             "throughput-target",
             Required = false,
             HelpText = "Set the throughput target, in MBs/minute")]
@@ -79,8 +65,6 @@ Event Hub connection string:  {EventHubConnectionString}
 DbUri:  {DbUri}
 Template Name:  {TemplateName}
 RecordsPerPayload:  {RecordsPerPayload}
-ParallelPartitions:  {ParallelPartitions}
-BatchSize:  {BatchSize}
 TargetThroughput (in MBs/minute):  {TargetThroughput}
 IsOutputCompressed:  {IsOutputCompressed}
 Authentication:  {Authentication}
