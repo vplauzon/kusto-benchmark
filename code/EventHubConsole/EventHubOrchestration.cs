@@ -72,6 +72,8 @@ namespace EventHubConsole
                 ? new EventHubProducerClient(options.Fqdn, options.EventHub, credentials)
                 : new EventHubProducerClient(options.EventHubConnectionString);
 
+            Console.WriteLine($"Template:  {template}");
+
             return new EventHubOrchestration(
                 generator,
                 eventHubProducerClient,
