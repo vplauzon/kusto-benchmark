@@ -39,7 +39,7 @@ namespace IngestorConsole
             CommandLineOptions options,
             CancellationToken ct)
         {
-            var credentials = CredentialFactory.CreateCredentials(options.Authentication);
+            var credentials = await CredentialFactory.CreateCredentialsAsync(options.Authentication);
             var kustoEngineClient = new KustoEngineClient(options.DbUri, credentials);
             var kustoIngestClient = new KustoIngestClient(
                 options.DbUri,

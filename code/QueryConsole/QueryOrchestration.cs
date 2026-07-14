@@ -39,7 +39,7 @@ namespace QueryConsole
             CommandLineOptions options,
             CancellationToken ct)
         {
-            var credentials = CredentialFactory.CreateCredentials(options.Authentication);
+            var credentials = await CredentialFactory.CreateCredentialsAsync(options.Authentication);
             var kustoEngineClient = new KustoEngineClient(options.DbUri, credentials);
             var template = await kustoEngineClient.FetchTemplateAsync(options.TemplateName, ct);
             var generator = await ExpressionGenerator.CreateAsync(template, kustoEngineClient, ct);
