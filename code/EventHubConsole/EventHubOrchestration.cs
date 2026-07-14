@@ -29,11 +29,26 @@ namespace EventHubConsole
             ExpressionGenerator generator,
             EventHubProducerClient eventHubProducerClient,
             int recordsPerPayload,
-            int batchSize,
-            int parallelPartitions,
             int targetMbPerMinute,
             bool isOutputCompressed)
         {
+            int SamplePayloadSize()
+            {
+                using (var stream = new MemoryStream())
+                using (var writer = new StreamWriter(stream))
+                {
+                    return generator.GenerateExpression(writer);
+                }
+            }
+
+            var payloadSize = SamplePayloadSize();
+            var eventsPerMinute = targetMbPerMinute * 1000000 / payloadSize;
+            //  We assume latency to send payload batch is 0.2s
+            var eventsPerLatencyWindow = (double)eventsPerMinute / (5 * 60);
+            //  Hard coded constant, just to better exploit networking capacity
+            var parallelPartitions = 5;
+            var batchSize = (int)Math.Round(eventsPerLatencyWindow / parallelPartitions);
+
             _generator = generator;
             _eventHubProducerClient = eventHubProducerClient;
             _recordsPerPayload = recordsPerPayload;
@@ -61,8 +76,6 @@ namespace EventHubConsole
                 generator,
                 eventHubProducerClient,
                 options.RecordsPerPayload,
-                options.BatchSize,
-                options.ParallelPartitions,
                 options.TargetThroughput,
                 options.IsOutputCompressed!.Value);
         }
@@ -157,7 +170,7 @@ namespace EventHubConsole
                         ++payloadRowCount;
                     }
                 }
-                if(_isOutputCompressed)
+                if (_isOutputCompressed)
                 {
                     payloadStream.Dispose();
                 }
