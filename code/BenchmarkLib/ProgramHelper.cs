@@ -83,7 +83,7 @@ namespace BenchmarkLib
         {
             Console.Error.WriteLine(
                 $"{tab}Exception encountered:  {ex.GetType().FullName} ; {ex.Message}");
-            Console.Error.WriteLine($"{tab}Stack trace:  {ex.StackTrace}");
+            Console.Error.WriteLine($"{tab}Stack trace:  {ex.StackTrace?.Substring(0, 100)}");
             if (ex.InnerException != null)
             {
                 DisplayGenericException(ex.InnerException, tab + "  ");

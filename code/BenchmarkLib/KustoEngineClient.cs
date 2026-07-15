@@ -36,31 +36,6 @@ namespace BenchmarkLib
             _queryProvider = queryProvider;
             _dbName = dbName;
         }
-
-        private static DataSourceFormat ParseFormat(string ingestionFormat)
-        {
-            if (Enum.TryParse<DataSourceFormat>(ingestionFormat, true, out var parsedFormat))
-            {
-                return parsedFormat;
-            }
-            else
-            {
-                throw new FormatException($"Can't parse ingestion format '{ingestionFormat}'");
-            }
-        }
-
-        private static IngestionMappingKind MapFormatToKind(DataSourceFormat ingestionFormat)
-        {
-            switch (ingestionFormat)
-            {
-                case DataSourceFormat.json:
-                case DataSourceFormat.multijson:
-                    return IngestionMappingKind.Json;
-
-                default:
-                    throw new NotImplementedException($"Format '{ingestionFormat}'");
-            }
-        }
         #endregion
 
         public async Task<string> FetchTemplateAsync(
