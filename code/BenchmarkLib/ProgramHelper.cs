@@ -81,14 +81,20 @@ namespace BenchmarkLib
         }
         private static void DisplayGenericException(Exception ex, string tab = "")
         {
+            string TruncateStackTrace(string? stackTrace)
+            {
+                var lines = (stackTrace ?? string.Empty).Split('\n');
+
+                return string.Join('\n', lines.Take(2));
+            }
+
             Console.Error.WriteLine(
                 $"{tab}Exception encountered:  {ex.GetType().FullName} ; {ex.Message}");
-            Console.Error.WriteLine($"{tab}Stack trace:  {ex.StackTrace?.Substring(0, 100)}");
+            Console.Error.WriteLine($"{tab}Stack trace:  {TruncateStackTrace(ex.StackTrace)}");
             if (ex.InnerException != null)
             {
                 DisplayGenericException(ex.InnerException, tab + "  ");
             }
         }
-
     }
 }
