@@ -49,7 +49,10 @@ namespace BenchmarkLib
         {
             AzureEventSourceListener CreateAzureEventSourceListener()
             {
-                var eventLevel = Enum.Parse<EventLevel>(sourceLevelText);
+                if (!Enum.TryParse<EventLevel>(sourceLevelText, true, out var eventLevel))
+                {
+                    throw new FormatException($"Can't parse event level '{sourceLevelText}'");
+                }
                 var listener = new AzureEventSourceListener(
                     (eventArgs, message) =>
                     {

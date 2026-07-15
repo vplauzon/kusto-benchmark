@@ -8,4 +8,4 @@ WORKDIR /work
 COPY . .
 
 #	Run console app
-CMD ["sh", "-c", "dotnet IngestorConsole.dll -d $dbUri -i $ingestionTable -t $templateName -r $rowCount -a $authentication -l $sourceLevel -m $mapping -p $parallelStream"]
+CMD ["sh", "-c", "dotnet IngestorConsole.dll -d \"${dbUri-}\" -i \"${ingestionTable-}\" -t \"${templateName-}\" -r \"${rowCount-1000}\" -a \"${authentication-}\" -l \"${sourceLevel-warning}\" -m \"${mapping-DefaultMapping}\" -p \"${parallelStream-1}\""]
