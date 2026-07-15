@@ -45,32 +45,34 @@ namespace IngestorConsole
             var cancellationTokenSource = new CancellationTokenSource();
             var taskCompletionSource = new TaskCompletionSource();
 
-            ProgramHelper.EnsureTraceLevel(options.SourceLevel);
-            AppDomain.CurrentDomain.ProcessExit += (e, s) =>
+            using (ProgramHelper.EnsureTraceLevel(options.SourceLevel))
             {
-                Trace.TraceInformation("Exiting process...");
-                cancellationTokenSource.Cancel();
-                taskCompletionSource.Task.Wait();
-            };
-            try
-            {
-                Trace.WriteLine("");
-                Trace.WriteLine("Parameterization:");
-                Trace.WriteLine("");
-                Trace.WriteLine(options.ToString());
-                Trace.WriteLine("");
-                await using (var orchestration = await IngestorOrchestration.CreateAsync(
-                    options,
-                    cancellationTokenSource.Token))
+                AppDomain.CurrentDomain.ProcessExit += (e, s) =>
                 {
-                    Trace.WriteLine("Processing...");
+                    Trace.TraceInformation("Exiting process...");
+                    cancellationTokenSource.Cancel();
+                    taskCompletionSource.Task.Wait();
+                };
+                try
+                {
                     Trace.WriteLine("");
-                    await orchestration.ProcessAsync(cancellationTokenSource.Token);
+                    Trace.WriteLine("Parameterization:");
+                    Trace.WriteLine("");
+                    Trace.WriteLine(options.ToString());
+                    Trace.WriteLine("");
+                    await using (var orchestration = await IngestorOrchestration.CreateAsync(
+                        options,
+                        cancellationTokenSource.Token))
+                    {
+                        Trace.WriteLine("Processing...");
+                        Trace.WriteLine("");
+                        await orchestration.ProcessAsync(cancellationTokenSource.Token);
+                    }
                 }
-            }
-            finally
-            {
-                taskCompletionSource.SetResult();
+                finally
+                {
+                    taskCompletionSource.SetResult();
+                }
             }
         }
     }

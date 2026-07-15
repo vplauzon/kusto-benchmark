@@ -1,8 +1,10 @@
-﻿using CommandLine;
+﻿using Azure.Core.Diagnostics;
+using CommandLine;
 using CommandLine.Text;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.Tracing;
 using System.Globalization;
 using System.Linq;
 using System.Text;
@@ -43,8 +45,20 @@ namespace BenchmarkLib
             }
         }
 
-        public static void EnsureTraceLevel(string sourceLevelText)
+        public static AzureEventSourceListener EnsureTraceLevel(string sourceLevelText)
         {
+            AzureEventSourceListener CreateAzureEventSourceListener()
+            {
+                var eventLevel = Enum.Parse<EventLevel>(sourceLevelText);
+                var listener = new AzureEventSourceListener(
+                    (eventArgs, message) =>
+                    {
+                        Console.WriteLine($"Event Level '{eventArgs.Level}': {message}");
+                    },
+                    eventLevel);
+
+                return listener;
+            }
             var sourceLevel = ProgramHelper.ParseSourceLevel(sourceLevelText);
 
             //  Ensure traces go to console even in a Docker container
@@ -52,6 +66,8 @@ namespace BenchmarkLib
             {
                 Filter = new EventTypeFilter(sourceLevel)
             });
+
+            return CreateAzureEventSourceListener();
         }
 
         private static void HandleParseError<T>(ParserResult<T> result, IEnumerable<Error> errors)
