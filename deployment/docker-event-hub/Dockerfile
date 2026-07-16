@@ -7,7 +7,7 @@ WORKDIR /work
 #	Copy package
 COPY . .
 
-#	Run console app
-CMD ["sh", "-c", "dotnet EventHubConsole.dll -l \"${sourceLevel-warning}\" -a \"${authentication-}\" -f \"${fqdn-}\" -e \"${eventHub-}\" --event-hub-connection-string \"${eventHubConnectionString-}\" -d \"${dbUri-}\" -t \"${templateName-}\" -r \"${recordsPerPayload-5}\" --throughput-target \"${throughputTarget-100}\" --max-time-between-batches \"${maxTimeBetweenBatches}\" --max-batch-size \"${maxBatchSize}\""]
+RUN chmod +x /work/entrypoint.sh
 
-#--event-hub-connection-string $eventHubConnectionString 
+#	Run console app
+CMD ["./entrypoint.sh"]
