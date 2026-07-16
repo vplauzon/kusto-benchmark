@@ -8,6 +8,6 @@ WORKDIR /work
 COPY . .
 
 #	Run console app
-CMD ["sh", "-c", "dotnet EventHubConsole.dll -l \"${sourceLevel-warning}\" -a \"${authentication-}\" -f \"${fqdn-}\" -e \"${eventHub-}\" --event-hub-connection-string \"${eventHubConnectionString-}\" -d \"${dbUri-}\" -t \"${templateName-}\" -r \"${recordsPerPayload-5}\" --throughput-target \"${throughputTarget-100}\" -c \"${isOutputCompressed-true}\""]
+CMD ["sh", "-c", "dotnet EventHubConsole.dll -l \"${sourceLevel-warning}\" -a \"${authentication-}\" -f \"${fqdn-}\" -e \"${eventHub-}\" --event-hub-connection-string \"${eventHubConnectionString-}\" -d \"${dbUri-}\" -t \"${templateName-}\" -r \"${recordsPerPayload-5}\" --throughput-target \"${throughputTarget-100}\" -c \"${isOutputCompressed-true}\" --max-time-between-batches \"${maxTimeBetweenBatches}\" --max-batch-size \"${maxBatchSize}\""]
 
 #--event-hub-connection-string $eventHubConnectionString 

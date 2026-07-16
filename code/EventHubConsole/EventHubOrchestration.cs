@@ -12,14 +12,19 @@ namespace EventHubConsole
     internal class EventHubOrchestration : IAsyncDisposable
     {
         #region Inner Types
-        private record BatchSendingOutput(double VolumeSent, Task SendingTask);
+        private record BatchSendingOutput(long VolumeSent, Task SendingTask);
         #endregion
+
+        //  Hard coded constant, just to better exploit networking capacity
+        private const int PARALLEL_PARTITION = 5;
+        private static readonly TimeSpan PAUSE_DURATION = TimeSpan.FromMicroseconds(0.1);
 
         private readonly ExpressionGenerator _generator;
         private readonly EventHubProducerClient _eventHubProducerClient;
+        private readonly int _targetBytePerMinute;
         private readonly int _recordsPerPayload;
-        private readonly int _batchSize;
-        private readonly int _targetMbPerMinute;
+        private readonly TimeSpan _maxTimeBetweenBatches;
+        private readonly int _maxBatchSize;
         private readonly bool _isOutputCompressed;
         private readonly ConcurrentQueue<MemoryStream> _streamQueue;
         private readonly ConcurrentQueue<Task> _sendTaskQueue = new();
@@ -28,35 +33,21 @@ namespace EventHubConsole
         private EventHubOrchestration(
             ExpressionGenerator generator,
             EventHubProducerClient eventHubProducerClient,
-            int recordsPerPayload,
             int targetMbPerMinute,
+            int recordsPerPayload,
+            TimeSpan maxTimeBetweenBatches,
+            int maxBatchSize,
             bool isOutputCompressed)
         {
-            int SamplePayloadSize()
-            {
-                using (var stream = new MemoryStream())
-                using (var writer = new StreamWriter(stream))
-                {
-                    return generator.GenerateExpression(writer);
-                }
-            }
-
-            var payloadSize = SamplePayloadSize();
-            var eventsPerMinute = targetMbPerMinute * 1000000 / payloadSize;
-            //  We assume latency to send payload batch is 0.2s
-            var eventsPerLatencyWindow = (double)eventsPerMinute / (5 * 60);
-            //  Hard coded constant, just to better exploit networking capacity
-            var parallelPartitions = 5;
-            var batchSize = (int)Math.Round(eventsPerLatencyWindow / parallelPartitions);
-
             _generator = generator;
             _eventHubProducerClient = eventHubProducerClient;
+            _targetBytePerMinute = targetMbPerMinute * 1000000;
             _recordsPerPayload = recordsPerPayload;
-            _batchSize = batchSize;
-            _targetMbPerMinute = targetMbPerMinute;
+            _maxTimeBetweenBatches = maxTimeBetweenBatches;
+            _maxBatchSize = maxBatchSize;
             _isOutputCompressed = isOutputCompressed;
             _streamQueue = new(Enumerable
-                .Range(0, parallelPartitions)
+                .Range(0, PARALLEL_PARTITION)
                 .Select(i => new MemoryStream()));
         }
 
@@ -77,9 +68,11 @@ namespace EventHubConsole
             return new EventHubOrchestration(
                 generator,
                 eventHubProducerClient,
-                options.RecordsPerPayload,
                 options.TargetThroughput,
-                options.IsOutputCompressed!.Value);
+                options.RecordsPerPayload,
+                options.MaxTimeBetweenBatches,
+                options.MaxBatchSize,
+                options.IsOutputCompressed);
         }
         #endregion
 
@@ -91,43 +84,56 @@ namespace EventHubConsole
 
         public async Task ProcessAsync(CancellationToken ct)
         {
-            var minuteWatch = new Stopwatch();
-            double minuteVolume = 0;
             await using var metricWriter = new IngestionMetricWriter();
+            var watch = new Stopwatch();
+            var volume = (long)0;
+            var lastBatch = DateTime.MinValue;
 
-            minuteWatch.Start();
+            watch.Start();
             while (!ct.IsCancellationRequested)
             {
-                await AwaitStreamAvailabilityAsync();
+                await ObserveSendTasksAsync();
 
-                if (minuteWatch.Elapsed > TimeSpan.FromMinutes(1))
-                {
-                    Console.WriteLine(
-                        $"In {minuteWatch.Elapsed}, we sent {minuteVolume / 1000000} MBs");
-                    minuteVolume = 0;
-                    minuteWatch.Restart();
-                }
+                var expectedVolume =
+                    (long)(watch.Elapsed / TimeSpan.FromMinutes(1) * _targetBytePerMinute);
+                var deltaVolume = expectedVolume - volume;
+                var deltaTime = DateTime.Now - lastBatch;
 
-                var deltaVolume = GetTargetVolume(minuteWatch.Elapsed) - minuteVolume;
-
-                if (deltaVolume > 0 && _streamQueue.TryDequeue(out var stream))
+                if (deltaVolume > 0
+                    && (deltaVolume > _maxBatchSize || deltaTime > _maxTimeBetweenBatches)
+                    && _streamQueue.TryDequeue(out var stream))
                 {
                     var sendingOutput =
                         await SendDataAsync(deltaVolume, stream, metricWriter, ct);
 
-                    minuteVolume += sendingOutput.VolumeSent;
+                    volume += sendingOutput.VolumeSent;
+                    lastBatch = DateTime.Now;
                     _sendTaskQueue.Enqueue(sendingOutput.SendingTask);
+                }
+                else
+                {
+                    await Task.Delay(PAUSE_DURATION, ct);
                 }
             }
         }
 
-        private async Task AwaitStreamAvailabilityAsync()
+        private async Task ObserveSendTasksAsync()
         {
-            while (!_streamQueue.Any())
+            while (_sendTaskQueue.Any())
             {
-                if (_sendTaskQueue.TryDequeue(out var sendTask))
+                if (_sendTaskQueue.TryPeek(out var sendTask))
                 {
-                    await sendTask;
+                    if (sendTask.IsCompleted)
+                    {
+                        if (_sendTaskQueue.TryDequeue(out var sendTask2))
+                        {
+                            await sendTask2;
+                        }
+                    }
+                    else
+                    {
+                        return;
+                    }
                 }
                 else
                 {
@@ -137,13 +143,8 @@ namespace EventHubConsole
             }
         }
 
-        private double GetTargetVolume(TimeSpan deltaTime)
-        {
-            return (deltaTime.TotalSeconds / 60 * _targetMbPerMinute) * 1000000;
-        }
-
         private async Task<BatchSendingOutput> SendDataAsync(
-            double targetVolume,
+            long targetVolume,
             MemoryStream outputStream,
             IngestionMetricWriter metricWriter,
             CancellationToken ct)
@@ -155,7 +156,7 @@ namespace EventHubConsole
             var stopwatch = new Stopwatch();
 
             stopwatch.Start();
-            for (var i = 0; (i != _batchSize && uncompressedVolume < targetVolume); ++i)
+            for (var i = 0; (i < _maxBatchSize && uncompressedVolume < targetVolume); ++i)
             {
                 Stream payloadStream = _isOutputCompressed
                     ? new GZipStream(outputStream, CompressionLevel.Fastest, true)
@@ -172,10 +173,6 @@ namespace EventHubConsole
                         ++payloadRowCount;
                     }
                 }
-                if (_isOutputCompressed)
-                {
-                    payloadStream.Dispose();
-                }
                 if (eventBatch.TryAdd(new EventData(outputStream.ToArray())))
                 {
                     uncompressedVolume += payloadUncompressedVolume;
@@ -185,6 +182,10 @@ namespace EventHubConsole
                 else
                 {
                     Console.WriteLine($"Can't add event #{i} to batch");
+                }
+                if (_isOutputCompressed)
+                {
+                    payloadStream.Dispose();
                 }
             }
 
@@ -202,8 +203,8 @@ namespace EventHubConsole
         private async Task SendBatchAsync(EventDataBatch eventBatch, MemoryStream outputStream)
         {
             await _eventHubProducerClient.SendAsync(eventBatch);
-            eventBatch.Dispose();
             _streamQueue.Enqueue(outputStream);
+            eventBatch.Dispose();
         }
     }
 }

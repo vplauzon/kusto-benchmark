@@ -299,7 +299,7 @@ namespace BenchmarkLib
                 totalLength += subExpression.Length;
                 writer.Write(subExpression);
             }
-            writer.WriteLine();
+            writer.Write('\n');
 
             return ++totalLength;
         }
