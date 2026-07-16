@@ -3,6 +3,10 @@
     internal class ExperimentOrchestration : IAsyncDisposable
     {
         #region Constructors
+        private ExperimentOrchestration()
+        {
+        }
+
         public static async Task<ExperimentOrchestration> CreateAsync(
             CommandLineOptions options,
             CancellationToken token)
