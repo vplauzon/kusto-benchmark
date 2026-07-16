@@ -45,6 +45,7 @@ jobs:
       run: |
         mkdir bin
         cp -r code/${folder}Console/bin/Release/net*/* bin
+        cp deployment/docker-${repo}/entrypoint.sh bin
 
     # Using the user MI as exposed in https://yourazurecoach.com/2022/12/29/use-github-actions-with-user-assigned-managed-identity/
     - name: Log into Azure
