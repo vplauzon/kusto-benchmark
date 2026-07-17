@@ -13,15 +13,15 @@ namespace EventHubExperimentConsole
         [Option('a', "auth", Required = false, HelpText = "Set authentication method:  'AzCli' or 'System'")]
         public string Authentication { get; set; } = string.Empty;
 
-        [Option('p', "path", Required = true, HelpText = "ADLS Gen2 path of the experiment config file")]
-        public string Path { get; set; } = string.Empty;
+        [Option('c', "config-uri", Required = true, HelpText = "ADLS Gen2 URI of the experiment config file")]
+        public string ConfigUri { get; set; } = string.Empty;
 
         public override string ToString()
         {
             return $@"
 Authentication:  {Authentication}
 Source level:  {SourceLevel}
-Path:  {Path}";
+ConfigUri:  {ConfigUri}";
         }
     }
 }

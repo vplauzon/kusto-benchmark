@@ -1,18 +1,29 @@
-﻿namespace EventHubExperimentConsole
+﻿using BenchmarkLib;
+using EventHubExperimentConsole.Configuration;
+
+namespace EventHubExperimentConsole
 {
     internal class ExperimentOrchestration : IAsyncDisposable
     {
+        private readonly ExperimentConfig _config;
+
         #region Constructors
-        private ExperimentOrchestration()
+        private ExperimentOrchestration(ExperimentConfig config)
         {
+            _config = config;
         }
 
         public static async Task<ExperimentOrchestration> CreateAsync(
             CommandLineOptions options,
             CancellationToken token)
         {
-            //  Load options.Path
-            throw new NotImplementedException();
+            var credential = await CredentialFactory.CreateCredentialsAsync(options.Authentication);
+            var config = await ExperimentConfig.LoadAsync(
+                options.ConfigUri,
+                credential,
+                token);
+
+            return new ExperimentOrchestration(config);
         }
         #endregion
 
