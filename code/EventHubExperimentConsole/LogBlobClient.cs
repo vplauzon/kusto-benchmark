@@ -131,6 +131,9 @@ namespace EventHubExperimentConsole
         /// </summary>
         /// <param name="ct"></param>
         /// <returns></returns>
+        /// <exception cref="OptimisticConcurrencyException">
+        /// Thrown when the blob changed after it was loaded and before the atomic swap.
+        /// </exception>
         public async Task CompactAsync(CancellationToken? ct = null)
         {
             var token = ct ?? CancellationToken.None;
@@ -155,6 +158,13 @@ namespace EventHubExperimentConsole
                     destinationConditions: CreateDataLakeConditions(loaded.Tag),
                     cancellationToken: token);
             }
+            catch (RequestFailedException ex) when (IsOptimisticConcurrencyFailure(ex))
+            {
+                await TryDeleteIfExistsAsync(tempBlobClient, token);
+                throw new OptimisticConcurrencyException(
+                    "Blob content changed while compacting the log.",
+                    ex);
+            }
             catch
             {
                 await TryDeleteIfExistsAsync(tempBlobClient, token);
@@ -169,6 +179,9 @@ namespace EventHubExperimentConsole
         /// </param>
         /// <param name="ct"></param>
         /// <returns></returns>
+        /// <exception cref="OptimisticConcurrencyException">
+        /// Thrown when the optional tag no longer matches the current blob version.
+        /// </exception>
         public Task AppendAsync(
             T document,
             string? tag = null,
@@ -182,7 +195,9 @@ namespace EventHubExperimentConsole
         /// <param name="tag"></param>
         /// <param name="ct"></param>
         /// <returns></returns>
-        /// <exception cref="NotImplementedException"></exception>
+        /// <exception cref="OptimisticConcurrencyException">
+        /// Thrown when the optional tag no longer matches the current blob version.
+        /// </exception>
         public Task AppendAsync(
             IEnumerable<T> documents,
             string? tag = null,
@@ -262,17 +277,30 @@ namespace EventHubExperimentConsole
                     payload.Length - offset);
 
                 await using var stream = new MemoryStream(payload, offset, blockLength, writable: false);
-                await appendBlobClient.AppendBlockAsync(
-                    stream,
-                    transactionalContentHash: null,
-                    conditions: conditions,
-                    progressHandler: null,
-                    cancellationToken: cancellationToken);
+                try
+                {
+                    await appendBlobClient.AppendBlockAsync(
+                        stream,
+                        transactionalContentHash: null,
+                        conditions: conditions,
+                        progressHandler: null,
+                        cancellationToken: cancellationToken);
+                }
+                catch (RequestFailedException ex)
+                    when (tag != null && IsOptimisticConcurrencyFailure(ex))
+                {
+                    throw new OptimisticConcurrencyException(
+                        "Blob content changed while appending with an optimistic concurrency tag.",
+                        ex);
+                }
 
                 conditions = null;
                 offset += blockLength;
             }
         }
+
+        private static bool IsOptimisticConcurrencyFailure(RequestFailedException ex)
+            => ex.Status == 412;
 
         private static AppendBlobRequestConditions? CreateAppendConditions(string? tag)
         {
