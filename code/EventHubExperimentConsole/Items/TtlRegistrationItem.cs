@@ -1,7 +1,8 @@
 ﻿namespace EventHubExperimentConsole.Items
 {
     internal record TtlRegistrationItem(
-        string Role,
+        string? SubExperimentName,
+        int SubExperimentNodeIndex,
         Guid NodeId,
         DateTime ExpirationTime);
 }
