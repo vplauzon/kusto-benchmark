@@ -52,12 +52,12 @@ namespace EventHubExperimentConsole
         /// <param name="credential">Credential used to access storage.</param>
         /// <param name="ct"></param>
         public static async Task<LogBlobClient<T>> CreateAsync(
-            string blobUri,
+            Uri blobUri,
             Func<IEnumerable<T>, IEnumerable<T>> compactFunc,
             TokenCredential credential,
-            CancellationToken? ct = null)
+            CancellationToken ct)
         {
-            ArgumentException.ThrowIfNullOrWhiteSpace(blobUri);
+            ArgumentException.ThrowIfNullOrWhiteSpace(blobUri.ToString());
             ArgumentNullException.ThrowIfNull(compactFunc);
             ArgumentNullException.ThrowIfNull(credential);
 
@@ -67,8 +67,7 @@ namespace EventHubExperimentConsole
             var appendBlobClient = new AppendBlobClient(blobClientUri, credential);
             var dataLakeFileClient = new DataLakeFileClient(dataLakeClientUri, credential);
 
-            await appendBlobClient.CreateIfNotExistsAsync(
-                cancellationToken: ct ?? CancellationToken.None);
+            await appendBlobClient.CreateIfNotExistsAsync(cancellationToken: ct);
 
             return new LogBlobClient<T>(
                 appendBlobClient,
@@ -87,10 +86,10 @@ namespace EventHubExperimentConsole
         /// </summary>
         /// <param name="ct"></param>
         /// <returns></returns>
-        public async Task<TaggedResult<IImmutableList<T>>> LoadAllAsync(CancellationToken? ct = null)
+        public async Task<TaggedResult<IImmutableList<T>>> LoadAllAsync(CancellationToken ct)
         {
             var response = await _appendBlobClient.DownloadStreamingAsync(
-                cancellationToken: ct ?? CancellationToken.None);
+                cancellationToken: ct);
 
             var items = new List<T>();
 
@@ -103,7 +102,7 @@ namespace EventHubExperimentConsole
             {
                 while (true)
                 {
-                    var line = await reader.ReadLineAsync(ct ?? CancellationToken.None);
+                    var line = await reader.ReadLineAsync(ct);
 
                     if (line == null)
                     {
@@ -131,14 +130,12 @@ namespace EventHubExperimentConsole
         /// </summary>
         /// <param name="ct"></param>
         /// <returns></returns>
-        public async Task CompactAsync(CancellationToken? ct = null)
+        public async Task CompactAsync(CancellationToken ct)
         {
-            var token = ct ?? CancellationToken.None;
-
-            while (!await TryCompactOnceAsync(token))
+            while (!await TryCompactOnceAsync(ct))
             {
-                token.ThrowIfCancellationRequested();
-                await Task.Delay(TimeSpan.FromMilliseconds(100), token);
+                ct.ThrowIfCancellationRequested();
+                await Task.Delay(TimeSpan.FromMilliseconds(100), ct);
             }
         }
 
@@ -154,8 +151,8 @@ namespace EventHubExperimentConsole
         /// </returns>
         public Task<bool> AppendAsync(
             T document,
-            string? tag = null,
-            CancellationToken? ct = null)
+            string? tag,
+            CancellationToken ct)
         {
             return AppendAsync([document], tag, ct);
         }
@@ -170,8 +167,8 @@ namespace EventHubExperimentConsole
         /// </returns>
         public Task<bool> AppendAsync(
             IEnumerable<T> documents,
-            string? tag = null,
-            CancellationToken? ct = null)
+            string? tag,
+            CancellationToken ct)
         {
             ArgumentNullException.ThrowIfNull(documents);
 
@@ -179,10 +176,10 @@ namespace EventHubExperimentConsole
                 _appendBlobClient,
                 documents,
                 tag,
-                ct ?? CancellationToken.None);
+                ct);
         }
 
-        private static Uri CreateBlobEndpointUri(string blobUri)
+        private static Uri CreateBlobEndpointUri(Uri blobUri)
         {
             var uriBuilder = new UriBuilder(blobUri);
 
@@ -194,7 +191,7 @@ namespace EventHubExperimentConsole
             return uriBuilder.Uri;
         }
 
-        private static Uri CreateDataLakeEndpointUri(string blobUri)
+        private static Uri CreateDataLakeEndpointUri(Uri blobUri)
         {
             var uriBuilder = new UriBuilder(blobUri);
             uriBuilder.Host = uriBuilder.Host.Replace(
@@ -222,7 +219,7 @@ namespace EventHubExperimentConsole
             AppendBlobClient appendBlobClient,
             IEnumerable<T> documents,
             string? tag,
-            CancellationToken cancellationToken)
+            CancellationToken ct)
         {
             var payload = SerializeDocuments(documents);
             var maxBlockBytes = appendBlobClient.AppendBlobMaxAppendBlockBytes;
@@ -235,7 +232,8 @@ namespace EventHubExperimentConsole
             if (tag != null && payload.Length > maxBlockBytes)
             {
                 throw new InvalidOperationException(
-                    $"Conditional append payload is {payload.Length} bytes, which exceeds the append-blob single block limit of {maxBlockBytes} bytes.");
+                    $"Conditional append payload is {payload.Length} bytes, " +
+                    $"which exceeds the append-blob single block limit of {maxBlockBytes} bytes.");
             }
 
             var conditions = CreateAppendConditions(tag);
@@ -254,7 +252,7 @@ namespace EventHubExperimentConsole
                         transactionalContentHash: null,
                         conditions: conditions,
                         progressHandler: null,
-                        cancellationToken: cancellationToken);
+                        cancellationToken: ct);
                 }
                 else
                 {
@@ -263,7 +261,7 @@ namespace EventHubExperimentConsole
                         transactionalContentHash: null,
                         conditions: conditions,
                         progressHandler: null,
-                        cancellationToken: cancellationToken));
+                        cancellationToken: ct));
 
                     if (!appended)
                     {
@@ -334,9 +332,9 @@ namespace EventHubExperimentConsole
             return $"{folder}{fileName}.{Guid.NewGuid():N}.tmp";
         }
 
-        private async Task<bool> TryCompactOnceAsync(CancellationToken cancellationToken)
+        private async Task<bool> TryCompactOnceAsync(CancellationToken ct)
         {
-            var loaded = await LoadAllAsync(cancellationToken);
+            var loaded = await LoadAllAsync(ct);
             var tempPath = CreateTemporaryPath();
             var tempBlobClient = _appendBlobClient
                 .GetParentBlobContainerClient()
@@ -347,13 +345,13 @@ namespace EventHubExperimentConsole
 
             try
             {
-                await tempBlobClient.CreateAsync(cancellationToken: cancellationToken);
+                await tempBlobClient.CreateAsync(cancellationToken: ct);
 
                 var appended = await AppendDocumentsInternalAsync(
                     tempBlobClient,
                     loaded.Result,
                     null,
-                    cancellationToken);
+                    ct);
 
                 if (!appended)
                 {
@@ -366,11 +364,11 @@ namespace EventHubExperimentConsole
                     destinationFileSystem: _dataLakeFileClient.FileSystemName,
                     sourceConditions: null,
                     destinationConditions: CreateDataLakeConditions(loaded.Tag),
-                    cancellationToken: cancellationToken));
+                    cancellationToken: ct));
 
                 if (!renamed)
                 {
-                    await TryDeleteIfExistsAsync(tempBlobClient, cancellationToken);
+                    await TryDeleteIfExistsAsync(tempBlobClient, ct);
                     return false;
                 }
 
@@ -378,18 +376,18 @@ namespace EventHubExperimentConsole
             }
             catch
             {
-                await TryDeleteIfExistsAsync(tempBlobClient, cancellationToken);
+                await TryDeleteIfExistsAsync(tempBlobClient, ct);
                 throw;
             }
         }
 
         private static async Task TryDeleteIfExistsAsync(
             AppendBlobClient appendBlobClient,
-            CancellationToken cancellationToken)
+            CancellationToken ct)
         {
             try
             {
-                await appendBlobClient.DeleteIfExistsAsync(cancellationToken: cancellationToken);
+                await appendBlobClient.DeleteIfExistsAsync(cancellationToken: ct);
             }
             catch (RequestFailedException)
             {
