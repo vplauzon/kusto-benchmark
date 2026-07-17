@@ -131,44 +131,14 @@ namespace EventHubExperimentConsole
         /// </summary>
         /// <param name="ct"></param>
         /// <returns></returns>
-        /// <exception cref="OptimisticConcurrencyException">
-        /// Thrown when the blob changed after it was loaded and before the atomic swap.
-        /// </exception>
         public async Task CompactAsync(CancellationToken? ct = null)
         {
             var token = ct ?? CancellationToken.None;
-            var loaded = await LoadAllAsync(token);
-            var tempPath = CreateTemporaryPath();
-            var tempBlobClient = _appendBlobClient
-                .GetParentBlobContainerClient()
-                .GetAppendBlobClient(tempPath);
-            var tempDataLakeFileClient = _dataLakeFileClient
-                .GetParentFileSystemClient()
-                .GetFileClient(tempPath);
 
-            try
+            while (!await TryCompactOnceAsync(token))
             {
-                await tempBlobClient.CreateAsync(cancellationToken: token);
-                await AppendDocumentsInternalAsync(tempBlobClient, loaded.Result, null, token);
-
-                await tempDataLakeFileClient.RenameAsync(
-                    destinationPath: _dataLakeFileClient.Path,
-                    destinationFileSystem: _dataLakeFileClient.FileSystemName,
-                    sourceConditions: null,
-                    destinationConditions: CreateDataLakeConditions(loaded.Tag),
-                    cancellationToken: token);
-            }
-            catch (RequestFailedException ex) when (IsOptimisticConcurrencyFailure(ex))
-            {
-                await TryDeleteIfExistsAsync(tempBlobClient, token);
-                throw new OptimisticConcurrencyException(
-                    "Blob content changed while compacting the log.",
-                    ex);
-            }
-            catch
-            {
-                await TryDeleteIfExistsAsync(tempBlobClient, token);
-                throw;
+                token.ThrowIfCancellationRequested();
+                await Task.Delay(TimeSpan.FromMilliseconds(100), token);
             }
         }
 
@@ -178,11 +148,11 @@ namespace EventHubExperimentConsole
         /// Optional tag:  if provided, the append only happends if tag hasn't changed.
         /// </param>
         /// <param name="ct"></param>
-        /// <returns></returns>
-        /// <exception cref="OptimisticConcurrencyException">
-        /// Thrown when the optional tag no longer matches the current blob version.
-        /// </exception>
-        public Task AppendAsync(
+        /// <returns>
+        /// True if append succeeds.  False if the optional tag does not match the
+        /// current blob version.
+        /// </returns>
+        public Task<bool> AppendAsync(
             T document,
             string? tag = null,
             CancellationToken? ct = null)
@@ -194,11 +164,11 @@ namespace EventHubExperimentConsole
         /// <param name="documents"></param>
         /// <param name="tag"></param>
         /// <param name="ct"></param>
-        /// <returns></returns>
-        /// <exception cref="OptimisticConcurrencyException">
-        /// Thrown when the optional tag no longer matches the current blob version.
-        /// </exception>
-        public Task AppendAsync(
+        /// <returns>
+        /// True if append succeeds.  False if the optional tag does not match the
+        /// current blob version.
+        /// </returns>
+        public Task<bool> AppendAsync(
             IEnumerable<T> documents,
             string? tag = null,
             CancellationToken? ct = null)
@@ -248,7 +218,7 @@ namespace EventHubExperimentConsole
             };
         }
 
-        private async Task AppendDocumentsInternalAsync(
+        private async Task<bool> AppendDocumentsInternalAsync(
             AppendBlobClient appendBlobClient,
             IEnumerable<T> documents,
             string? tag,
@@ -259,7 +229,7 @@ namespace EventHubExperimentConsole
 
             if (payload.Length == 0)
             {
-                return;
+                return true;
             }
 
             if (tag != null && payload.Length > maxBlockBytes)
@@ -277,7 +247,7 @@ namespace EventHubExperimentConsole
                     payload.Length - offset);
 
                 await using var stream = new MemoryStream(payload, offset, blockLength, writable: false);
-                try
+                if (conditions == null)
                 {
                     await appendBlobClient.AppendBlockAsync(
                         stream,
@@ -286,21 +256,43 @@ namespace EventHubExperimentConsole
                         progressHandler: null,
                         cancellationToken: cancellationToken);
                 }
-                catch (RequestFailedException ex)
-                    when (tag != null && IsOptimisticConcurrencyFailure(ex))
+                else
                 {
-                    throw new OptimisticConcurrencyException(
-                        "Blob content changed while appending with an optimistic concurrency tag.",
-                        ex);
+                    var appended = await TryRunOptimisticAsync(() => appendBlobClient.AppendBlockAsync(
+                        stream,
+                        transactionalContentHash: null,
+                        conditions: conditions,
+                        progressHandler: null,
+                        cancellationToken: cancellationToken));
+
+                    if (!appended)
+                    {
+                        return false;
+                    }
                 }
 
                 conditions = null;
                 offset += blockLength;
             }
+
+            return true;
         }
 
         private static bool IsOptimisticConcurrencyFailure(RequestFailedException ex)
             => ex.Status == 412;
+
+        private static async Task<bool> TryRunOptimisticAsync(Func<Task> action)
+        {
+            try
+            {
+                await action();
+                return true;
+            }
+            catch (RequestFailedException ex) when (IsOptimisticConcurrencyFailure(ex))
+            {
+                return false;
+            }
+        }
 
         private static AppendBlobRequestConditions? CreateAppendConditions(string? tag)
         {
@@ -340,6 +332,55 @@ namespace EventHubExperimentConsole
                 : pathName;
 
             return $"{folder}{fileName}.{Guid.NewGuid():N}.tmp";
+        }
+
+        private async Task<bool> TryCompactOnceAsync(CancellationToken cancellationToken)
+        {
+            var loaded = await LoadAllAsync(cancellationToken);
+            var tempPath = CreateTemporaryPath();
+            var tempBlobClient = _appendBlobClient
+                .GetParentBlobContainerClient()
+                .GetAppendBlobClient(tempPath);
+            var tempDataLakeFileClient = _dataLakeFileClient
+                .GetParentFileSystemClient()
+                .GetFileClient(tempPath);
+
+            try
+            {
+                await tempBlobClient.CreateAsync(cancellationToken: cancellationToken);
+
+                var appended = await AppendDocumentsInternalAsync(
+                    tempBlobClient,
+                    loaded.Result,
+                    null,
+                    cancellationToken);
+
+                if (!appended)
+                {
+                    throw new InvalidOperationException(
+                        "Unable to append compacted payload to temporary blob.");
+                }
+
+                var renamed = await TryRunOptimisticAsync(() => tempDataLakeFileClient.RenameAsync(
+                    destinationPath: _dataLakeFileClient.Path,
+                    destinationFileSystem: _dataLakeFileClient.FileSystemName,
+                    sourceConditions: null,
+                    destinationConditions: CreateDataLakeConditions(loaded.Tag),
+                    cancellationToken: cancellationToken));
+
+                if (!renamed)
+                {
+                    await TryDeleteIfExistsAsync(tempBlobClient, cancellationToken);
+                    return false;
+                }
+
+                return true;
+            }
+            catch
+            {
+                await TryDeleteIfExistsAsync(tempBlobClient, cancellationToken);
+                throw;
+            }
         }
 
         private static async Task TryDeleteIfExistsAsync(
