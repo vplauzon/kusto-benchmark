@@ -11,6 +11,7 @@
             CommandLineOptions options,
             CancellationToken token)
         {
+            //  Load options.Path
             throw new NotImplementedException();
         }
         #endregion
