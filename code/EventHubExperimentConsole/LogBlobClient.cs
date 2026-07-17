@@ -241,46 +241,36 @@ namespace EventHubExperimentConsole
             CancellationToken cancellationToken)
         {
             var payload = SerializeDocuments(documents);
+            var maxBlockBytes = appendBlobClient.AppendBlobMaxAppendBlockBytes;
 
             if (payload.Length == 0)
             {
                 return;
             }
 
-            if (tag != null && payload.Length > appendBlobClient.AppendBlobMaxAppendBlockBytes)
+            if (tag != null && payload.Length > maxBlockBytes)
             {
                 throw new InvalidOperationException(
-                    $"Conditional append payload is {payload.Length} bytes, which exceeds the append-blob single block limit of {appendBlobClient.AppendBlobMaxAppendBlockBytes} bytes.");
+                    $"Conditional append payload is {payload.Length} bytes, which exceeds the append-blob single block limit of {maxBlockBytes} bytes.");
             }
 
-            if (payload.Length <= appendBlobClient.AppendBlobMaxAppendBlockBytes)
-            {
-                await using var stream = new MemoryStream(payload, writable: false);
-                await appendBlobClient.AppendBlockAsync(
-                    stream,
-                    transactionalContentHash: null,
-                    conditions: CreateAppendConditions(tag),
-                    progressHandler: null,
-                    cancellationToken: cancellationToken);
-
-                return;
-            }
-
+            var conditions = CreateAppendConditions(tag);
             var offset = 0;
             while (offset < payload.Length)
             {
                 var blockLength = Math.Min(
-                    appendBlobClient.AppendBlobMaxAppendBlockBytes,
+                    maxBlockBytes,
                     payload.Length - offset);
 
                 await using var stream = new MemoryStream(payload, offset, blockLength, writable: false);
                 await appendBlobClient.AppendBlockAsync(
                     stream,
                     transactionalContentHash: null,
-                    conditions: null,
+                    conditions: conditions,
                     progressHandler: null,
                     cancellationToken: cancellationToken);
 
+                conditions = null;
                 offset += blockLength;
             }
         }
