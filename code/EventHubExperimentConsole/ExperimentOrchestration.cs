@@ -65,8 +65,19 @@ namespace EventHubExperimentConsole
             await ValueTask.CompletedTask;
         }
 
-        public async Task ProcessAsync(CancellationToken token)
+        public async Task ProcessAsync(CancellationToken ct)
         {
+            while (!ct.IsCancellationRequested)
+            {
+                await RegisterAsync(ct);
+                throw new NotImplementedException();
+            }
+        }
+
+        private async Task RegisterAsync(CancellationToken ct)
+        {
+            var result = await _logBlobClient.LoadAllAsync(ct);
+
             throw new NotImplementedException();
         }
 
