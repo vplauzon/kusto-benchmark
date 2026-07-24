@@ -78,7 +78,8 @@ namespace EventHubExperimentConsole
                     _config.DisplayConfig();
                     Console.WriteLine();
 
-                    throw new NotImplementedException();
+                    //throw new NotImplementedException();
+                    await Task.Delay(TimeSpan.FromDays(1));
                 }
             }
         }
@@ -87,7 +88,9 @@ namespace EventHubExperimentConsole
         {
             var ttlRegistrationItems = items
                 .Where(i => i.TtlRegistrationItem != null)
+                //  Keep non-expired item
                 .Where(i => !i.TtlRegistrationItem!.IsExpired)
+                //  Keep last registered item (by experiment name / node index)
                 .GroupBy(i => i.TtlRegistrationItem!.NodeItem)
                 .Select(g => g.OrderBy(i => i.TtlRegistrationItem!.ExpirationTime).Last());
 

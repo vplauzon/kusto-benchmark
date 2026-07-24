@@ -9,19 +9,24 @@ namespace EventHubExperimentConsole
     {
         private static readonly TimeSpan REGISTRATION_TTL = TimeSpan.FromSeconds(30);
         private static readonly TimeSpan AWAIT_REGISTRATION_DELAY = TimeSpan.FromSeconds(5);
+        private static readonly TimeSpan CLEAN_REGISTRATION_DELAY = TimeSpan.FromMinutes(5);
 
         private readonly LogBlobClient<LogItem> _logBlobClient;
         private readonly Guid _nodeId;
+        private readonly TaskCompletionSource _registrationSource = new();
+        private readonly Task _backgroundTask;
 
         #region Constructor
         private RegistrationManager(
             LogBlobClient<LogItem> logBlobClient,
             Guid nodeId,
-            NodeItem? nodeItem)
+            NodeItem? nodeItem,
+            CancellationToken ct)
         {
             _logBlobClient = logBlobClient;
             _nodeId = nodeId;
             NodeItem = nodeItem;
+            _backgroundTask = RunBackgroundAsync(ct);
         }
 
         public static async Task<RegistrationManager> RegisterAsync(
@@ -51,7 +56,8 @@ namespace EventHubExperimentConsole
                     return new RegistrationManager(
                         logBlobClient,
                         nodeId,
-                        result.NodeItem);
+                        result.NodeItem,
+                        ct);
                 }
                 else
                 {
@@ -98,9 +104,36 @@ namespace EventHubExperimentConsole
 
         public NodeItem? NodeItem { get; }
 
-        ValueTask IAsyncDisposable.DisposeAsync()
+        async ValueTask IAsyncDisposable.DisposeAsync()
         {
-            throw new NotImplementedException();
+            _registrationSource.TrySetResult();
+            await _backgroundTask;
+        }
+
+        private async Task RunBackgroundAsync(CancellationToken ct)
+        {
+            var lastClean = DateTime.MinValue;
+
+            while (!ct.IsCancellationRequested && !_registrationSource.Task.IsCompleted)
+            {
+                if (lastClean.Add(CLEAN_REGISTRATION_DELAY) < DateTime.Now)
+                {
+                    await _logBlobClient.CompactAsync(ct);
+                    lastClean = DateTime.Now;
+                }
+                ct.ThrowIfCancellationRequested();
+                //  Update registration
+                await _logBlobClient.AppendAsync(
+                    LogItem.Create(new TtlRegistrationItem(
+                        NodeItem,
+                        _nodeId,
+                        DateTime.Now.Add(REGISTRATION_TTL))),
+                    null,
+                    ct);
+                ct.ThrowIfCancellationRequested();
+                //  Pause
+                await Task.Delay(REGISTRATION_TTL / 2, ct);
+            }
         }
     }
 }
