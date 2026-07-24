@@ -6,10 +6,6 @@ namespace EventHubExperimentConsole
 {
     internal class ExperimentOrchestration : IAsyncDisposable
     {
-        private static readonly TimeSpan REGISTRATION_TTL = TimeSpan.FromSeconds(30);
-        private static readonly TimeSpan AWAIT_REGISTRATION_DELAY = TimeSpan.FromSeconds(5);
-
-        private readonly Guid _nodeId = Guid.NewGuid();
         private readonly string _experimentName;
         private readonly ExperimentConfig _config;
         private readonly LogBlobClient<LogItem> _logBlobClient;
@@ -73,52 +69,25 @@ namespace EventHubExperimentConsole
         {
             while (!ct.IsCancellationRequested)
             {
-                await RegisterAsync(ct);
-                throw new NotImplementedException();
-            }
-        }
+                var nodeId = Guid.NewGuid();
 
-        private async Task<NodeItem> RegisterAsync(CancellationToken ct)
-        {
-            while (true)
-            {
-                var result = await _logBlobClient.LoadAllAsync(ct);
-                var ttlRegistrationItems = result.Result
-                    .Where(r => r.TtlRegistrationItem != null)
-                    .Select(r => r.TtlRegistrationItem!);
-                var leaderRegistrationItem = ttlRegistrationItems
-                    .FirstOrDefault(i => i.NodeItem.SubExperimentName == null);
-
-                if (leaderRegistrationItem != null && !leaderRegistrationItem.IsExpired)
+                await using (var registration =
+                    await RegistrationManager.RegisterAsync(_logBlobClient, nodeId, ct))
                 {
-                    throw new NotImplementedException("Look at more than leader");
-                }
-                else
-                {
-                    var nodeItem = new NodeItem(null, 0, _nodeId);
-                    var success = await _logBlobClient.AppendAsync(
-                        LogItem.Create(new TtlRegistrationItem(
-                            nodeItem,
-                            DateTime.Now.Add(REGISTRATION_TTL))),
-                        result.Tag,
-                        ct);
-
-                    if (success)
-                    {
-                        return nodeItem;
-                    }
-                    else
-                    {
-                        await Task.Delay(AWAIT_REGISTRATION_DELAY, ct);
-                    }
+                    throw new NotImplementedException();
                 }
             }
         }
 
         private static IEnumerable<LogItem> CompactLogItems(IEnumerable<LogItem> items)
         {
-            return items
-                .Where(i => i.TtlRegistrationItem == null || !i.TtlRegistrationItem.IsExpired);
+            var ttlRegistrationItems = items
+                .Where(i => i.TtlRegistrationItem != null)
+                .Where(i => !i.TtlRegistrationItem!.IsExpired)
+                .GroupBy(i => i.TtlRegistrationItem!.NodeItem)
+                .Select(g => g.OrderBy(i => i.TtlRegistrationItem!.ExpirationTime).Last());
+
+            return ttlRegistrationItems;
         }
     }
 }
