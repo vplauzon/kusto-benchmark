@@ -1,8 +1,7 @@
 ﻿namespace EventHubExperimentConsole.Items
 {
-    internal record TtlRegistrationItem(
-        string? SubExperimentName,
-        int SubExperimentNodeIndex,
-        Guid NodeId,
-        DateTime ExpirationTime);
+    internal record TtlRegistrationItem(NodeItem NodeItem, DateTime ExpirationTime)
+    {
+        public bool IsExpired => ExpirationTime < DateTime.Now;
+    }
 }
