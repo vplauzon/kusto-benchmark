@@ -74,6 +74,10 @@ namespace EventHubExperimentConsole
                 await using (var registration =
                     await RegistrationManager.RegisterAsync(_logBlobClient, nodeId, ct))
                 {
+                    Console.WriteLine("Experiment configuration:");
+                    _config.DisplayConfig();
+                    Console.WriteLine();
+
                     throw new NotImplementedException();
                 }
             }

@@ -1,6 +1,8 @@
 using Azure.Core;
 using Azure.Storage.Blobs;
 using SharpYaml;
+using SharpYaml.Tokens;
+using System.Reflection.PortableExecutable;
 using System.Text.Json;
 
 namespace EventHubExperimentConsole.Configuration
@@ -30,6 +32,11 @@ namespace EventHubExperimentConsole.Configuration
 
                 return YamlSerializer.Deserialize<ExperimentConfig>(yaml, Options)!;
             }
+        }
+
+        public void DisplayConfig()
+        {
+            Console.WriteLine(YamlSerializer.Serialize(this, Options));
         }
     }
 }
