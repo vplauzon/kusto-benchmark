@@ -329,7 +329,7 @@ namespace EventHubExperimentConsole
                 ? pathName[(lastSeparator + 1)..]
                 : pathName;
 
-            return $"{folder}{fileName}.{Guid.NewGuid():N}.tmp";
+            return $"{folder}{fileName}.tmp";
         }
 
         private async Task<bool> TryCompactOnceAsync(CancellationToken ct)
@@ -345,6 +345,7 @@ namespace EventHubExperimentConsole
 
             try
             {
+                await TryDeleteIfExistsAsync(tempBlobClient, ct);
                 await tempBlobClient.CreateAsync(cancellationToken: ct);
 
                 var appended = await AppendDocumentsInternalAsync(
@@ -369,6 +370,7 @@ namespace EventHubExperimentConsole
                 if (!renamed)
                 {
                     await TryDeleteIfExistsAsync(tempBlobClient, ct);
+
                     return false;
                 }
 
