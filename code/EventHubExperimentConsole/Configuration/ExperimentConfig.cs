@@ -1,8 +1,6 @@
 using Azure.Core;
 using Azure.Storage.Blobs;
 using SharpYaml;
-using SharpYaml.Tokens;
-using System.Reflection.PortableExecutable;
 using System.Text.Json;
 
 namespace EventHubExperimentConsole.Configuration
@@ -10,6 +8,7 @@ namespace EventHubExperimentConsole.Configuration
     internal record ExperimentConfig(
         string TemplateDb,
         string TemplateName,
+        TimeSpan SubExperimentDuration,
         IReadOnlyList<SubExperimentConfig> SubExperiments)
     {
         private static readonly YamlSerializerOptions Options = new()

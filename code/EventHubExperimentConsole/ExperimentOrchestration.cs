@@ -78,7 +78,19 @@ namespace EventHubExperimentConsole
                     _config.DisplayConfig();
                     Console.WriteLine();
 
-                    //throw new NotImplementedException();
+                    if (registration.NodeItem == null)
+                    {
+                        var orchestration = new LeaderOrchestration(
+                            _experimentName,
+                            _config,
+                            _logBlobClient);
+
+                        await orchestration.ProcessAsync(ct);
+                    }
+                    else
+                    {
+                        throw new NotImplementedException();
+                    }
                     await Task.Delay(TimeSpan.FromDays(1));
                 }
             }
