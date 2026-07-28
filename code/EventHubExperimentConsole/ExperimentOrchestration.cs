@@ -105,8 +105,11 @@ namespace EventHubExperimentConsole
                 //  Keep last registered item (by experiment name / node index)
                 .GroupBy(i => i.TtlRegistrationItem!.NodeItem)
                 .Select(g => g.OrderBy(i => i.TtlRegistrationItem!.ExpirationTime).Last());
+            var subExperimentItems = items
+                .Where(i => i.SubExperimentItem != null);
 
-            return ttlRegistrationItems;
+            return ttlRegistrationItems
+                .Concat(subExperimentItems);
         }
     }
 }
