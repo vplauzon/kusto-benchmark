@@ -33,12 +33,17 @@ namespace EventHubExperimentConsole
             ArgumentOutOfRangeException.ThrowIfNegative(instanceCount);
 
             var response = await _containerApp.GetAsync(ct);
-            var data = response.Value.Data;
-
-            data.Template ??= new ContainerAppTemplate();
-            data.Template.Scale ??= new ContainerAppScale();
-            data.Template.Scale.MinReplicas = instanceCount;
-            data.Template.Scale.MaxReplicas = instanceCount;
+            var data = new ContainerAppData(response.Value.Data.Location)
+            {
+                Template = new ContainerAppTemplate
+                {
+                    Scale = new ContainerAppScale
+                    {
+                        MinReplicas = instanceCount,
+                        MaxReplicas = instanceCount
+                    }
+                }
+            };
 
             await _containerApp.UpdateAsync(WaitUntil.Completed, data, ct);
         }
