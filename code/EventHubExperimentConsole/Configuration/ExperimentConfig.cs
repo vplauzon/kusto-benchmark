@@ -8,7 +8,7 @@ namespace EventHubExperimentConsole.Configuration
     internal record ExperimentConfig(
         string TemplateDb,
         string TemplateName,
-        long MaxThroughputPerNode,
+        EventHubConfig EventHubConfiguration,
         TimeSpan SubExperimentDuration,
         IReadOnlyList<SubExperimentConfig> SubExperiments)
     {
