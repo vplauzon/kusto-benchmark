@@ -1,6 +1,7 @@
 ﻿using EventHubExperimentConsole.Items;
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Text;
 
 namespace EventHubExperimentConsole
@@ -29,6 +30,7 @@ namespace EventHubExperimentConsole
             _backgroundTask = RunBackgroundAsync(ct);
         }
 
+        #region Register
         public static async Task<RegistrationManager> RegisterAsync(
             LogBlobClient<LogItem> logBlobClient,
             Guid nodeId,
@@ -71,8 +73,48 @@ namespace EventHubExperimentConsole
             Guid nodeId,
             CancellationToken ct)
         {
-            var result = await logBlobClient.LoadAllAsync(ct);
-            var ttlRegistrationItems = result.Result
+            var allItemsResult = await logBlobClient.LoadAllAsync(ct);
+            var leaderResult = await TryRegisterLeaderAsync(
+                logBlobClient,
+                allItemsResult.Tag,
+                allItemsResult.Result,
+                nodeId,
+                ct);
+
+            if (leaderResult.Success)
+            {
+                return leaderResult;
+            }
+            else
+            {
+                var nonLeaderResult = await TryRegisterNonLeaderAsync(
+                    logBlobClient,
+                    allItemsResult.Tag,
+                    allItemsResult.Result,
+                    nodeId,
+                    ct);
+
+                if (nonLeaderResult.Success)
+                {
+                    return nonLeaderResult;
+                }
+                else
+                {
+                    Console.WriteLine($"No registration available for node ({nodeId})");
+
+                    return (false, null);
+                }
+            }
+        }
+
+        private static async Task<(bool Success, NodeItem? NodeItem)> TryRegisterLeaderAsync(
+            LogBlobClient<LogItem> logBlobClient,
+            string logTag,
+            IImmutableList<LogItem> allItems,
+            Guid nodeId,
+            CancellationToken ct)
+        {
+            var ttlRegistrationItems = allItems
                 .Where(r => r.TtlRegistrationItem != null)
                 .Select(r => r.TtlRegistrationItem!);
             var leaderRegistrationItem = ttlRegistrationItems
@@ -80,26 +122,89 @@ namespace EventHubExperimentConsole
 
             if (leaderRegistrationItem != null && !leaderRegistrationItem.IsExpired)
             {
-                //  Look at more than leader
-                //  TODO
+                return (false, null);
             }
             else
             {
-                var success = await logBlobClient.AppendAsync(
-                    LogItem.Create(new TtlRegistrationItem(
-                        null,
-                        nodeId,
-                        DateTime.Now.Add(REGISTRATION_TTL))),
-                    result.Tag,
-                    ct);
-
-                return (success, null);
+                return await TryRegisterNodeAsync(logBlobClient, nodeId, null, logTag, ct);
             }
+        }
 
-            Console.WriteLine($"No registration available for node ({nodeId})");
+        private static async Task<(bool Success, NodeItem? NodeItem)> TryRegisterNodeAsync(
+            LogBlobClient<LogItem> logBlobClient,
+            Guid nodeId,
+            NodeItem? nodeItem,
+            string logTag,
+            CancellationToken ct)
+        {
+            var success = await logBlobClient.AppendAsync(
+                LogItem.Create(new TtlRegistrationItem(
+                    nodeItem,
+                    nodeId,
+                    DateTime.Now.Add(REGISTRATION_TTL))),
+                logTag,
+                ct);
+
+            return (success, null);
+        }
+
+        private static async Task<(bool Success, NodeItem? NodeItem)> TryRegisterNonLeaderAsync(
+            LogBlobClient<LogItem> logBlobClient,
+            string logTag,
+            IImmutableList<LogItem> allItems,
+            Guid nodeId,
+            CancellationToken ct)
+        {
+            var ttlRegistrationItemGroups = allItems
+                .Where(r => r.TtlRegistrationItem?.NodeItem != null)
+                .Select(r => r.TtlRegistrationItem!)
+                .GroupBy(t => t.NodeItem!.SubExperimentName)
+                .ToDictionary(g => g.Key, g => g.Where(t => !t.IsExpired).ToArray());
+            var subExperimentItems = allItems
+                .Where(r => r.SubExperimentItem != null)
+                .Select(r => r.SubExperimentItem!);
+
+            foreach (var subExperimentItem in subExperimentItems)
+            {
+                if (ttlRegistrationItemGroups.TryGetValue(
+                    subExperimentItem.SubExperimentName,
+                    out var registrationItems))
+                {   //  Some registration available
+                    //  Let's find the first one available
+                    var takenIndexes = registrationItems
+                        .Select(i => i.NodeItem!.SubExperimentNodeIndex);
+                    var indexAvailable = Enumerable.Range(0, subExperimentItem.NodeCount)
+                        .Except(takenIndexes)
+                        .Take(1)
+                        .ToArray();
+
+                    if (indexAvailable.Length == 1)
+                    {   //  One index is available
+                        var index = indexAvailable[0];
+
+                        return await TryRegisterNodeAsync(
+                            logBlobClient,
+                            nodeId,
+                            new NodeItem(subExperimentItem.SubExperimentName, index),
+                            logTag,
+                            ct);
+                    }
+                }
+                else
+                {   //  No registration available for that sub experiment:
+                    //  let's register the first one
+                    return await TryRegisterNodeAsync(
+                        logBlobClient,
+                        nodeId,
+                        new NodeItem(subExperimentItem.SubExperimentName, 0),
+                        logTag,
+                        ct);
+                }
+            }
 
             return (false, null);
         }
+        #endregion
         #endregion
 
         public NodeItem? NodeItem { get; }
