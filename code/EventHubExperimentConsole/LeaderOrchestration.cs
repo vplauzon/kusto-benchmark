@@ -41,8 +41,10 @@ namespace EventHubExperimentConsole
                     endTime)));
             var totalInstanceCount = 1 + newItems.Sum(i => i.SubExperimentItem!.NodeCount);
 
+            Console.WriteLine($"Creating sub experiments with {totalInstanceCount} nodes");
             await _logBlobClient.AppendAsync(newItems, null, ct);
             await _instanceManager.SetInstanceCountAsync(totalInstanceCount, ct);
+            Console.WriteLine($"Sub experiments created");
         }
     }
 }
