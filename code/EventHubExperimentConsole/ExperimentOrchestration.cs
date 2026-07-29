@@ -87,7 +87,8 @@ namespace EventHubExperimentConsole
                         var orchestration = new LeaderOrchestration(
                             _experimentName,
                             _config,
-                            _logBlobClient);
+                            _logBlobClient,
+                            _instanceManager);
 
                         await orchestration.ProcessAsync(ct);
                     }
