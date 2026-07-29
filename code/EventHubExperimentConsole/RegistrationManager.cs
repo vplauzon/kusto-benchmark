@@ -147,7 +147,7 @@ namespace EventHubExperimentConsole
                 logTag,
                 ct);
 
-            return (success, null);
+            return (success, nodeItem);
         }
 
         private static async Task<(bool Success, NodeItem? NodeItem)> TryRegisterNonLeaderAsync(
