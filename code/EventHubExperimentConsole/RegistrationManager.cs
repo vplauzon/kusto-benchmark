@@ -63,6 +63,8 @@ namespace EventHubExperimentConsole
                 }
                 else
                 {
+                    Console.WriteLine($"Node ({nodeId}) registration is delayed");
+
                     await Task.Delay(AWAIT_REGISTRATION_DELAY, ct);
                 }
             }
