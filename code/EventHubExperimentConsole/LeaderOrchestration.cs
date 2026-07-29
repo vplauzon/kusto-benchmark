@@ -10,15 +10,18 @@ namespace EventHubExperimentConsole
         private readonly string _experimentName;
         private readonly ExperimentConfig _config;
         private readonly LogBlobClient<LogItem> _logBlobClient;
+        private readonly InstanceManager _instanceManager;
 
         public LeaderOrchestration(
             string experimentName,
             ExperimentConfig config,
-            LogBlobClient<LogItem> logBlobClient)
+            LogBlobClient<LogItem> logBlobClient,
+            InstanceManager instanceManager)
         {
             _experimentName = experimentName;
             _config = config;
             _logBlobClient = logBlobClient;
+            _instanceManager = instanceManager;
         }
 
         public async Task ProcessAsync(CancellationToken ct)
@@ -36,8 +39,10 @@ namespace EventHubExperimentConsole
                     s.ThroughputTargetStart,
                     startTime,
                     endTime)));
+            var totalInstanceCount = 1 + newItems.Sum(i => i.SubExperimentItem!.NodeCount);
 
             await _logBlobClient.AppendAsync(newItems, null, ct);
+            await _instanceManager.SetInstanceCountAsync(totalInstanceCount, ct);
         }
     }
 }

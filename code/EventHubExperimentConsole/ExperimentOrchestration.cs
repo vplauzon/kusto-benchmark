@@ -9,16 +9,19 @@ namespace EventHubExperimentConsole
         private readonly string _experimentName;
         private readonly ExperimentConfig _config;
         private readonly LogBlobClient<LogItem> _logBlobClient;
+        private readonly InstanceManager _instanceManager;
 
         #region Constructors
         private ExperimentOrchestration(
             string experimentName,
             ExperimentConfig config,
-            LogBlobClient<LogItem> logBlobClient)
+            LogBlobClient<LogItem> logBlobClient,
+            InstanceManager instanceManager)
         {
             _experimentName = experimentName;
             _config = config;
             _logBlobClient = logBlobClient;
+            _instanceManager = instanceManager;
         }
 
         public static async Task<ExperimentOrchestration> CreateAsync(
@@ -55,7 +58,7 @@ namespace EventHubExperimentConsole
                 await LogBlobClient<LogItem>.CreateAsync(logUri, CompactLogItems, credential, ct);
             var instanceManager = new InstanceManager(config.ContainerAppId, credential);
 
-            return new ExperimentOrchestration(folderName, config, logBlobClient);
+            return new ExperimentOrchestration(folderName, config, logBlobClient, instanceManager);
         }
         #endregion
 

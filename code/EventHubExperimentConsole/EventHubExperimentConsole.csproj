@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
 		<Version>0.0.1.0</Version>
@@ -13,6 +13,7 @@
 	</PropertyGroup>
 
 	<ItemGroup>
+		<PackageReference Include="Azure.ResourceManager.AppContainers" Version="1.5.0" />
 		<PackageReference Include="Azure.Storage.Blobs" Version="12.29.1" />
 		<PackageReference Include="Azure.Storage.Files.DataLake" Version="12.27.1" />
 		<PackageReference Include="Microsoft.Azure.Kusto.Data" Version="14.2.0" />
