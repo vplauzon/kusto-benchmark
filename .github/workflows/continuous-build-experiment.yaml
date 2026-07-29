@@ -1,4 +1,4 @@
-name:  Event Hub Continuous Build
+name:  Experiment Continuous Build
 
 on:
   workflow_dispatch:
@@ -13,13 +13,11 @@ permissions:
   contents: read
 
 env:
-  folder:  EventHub
-  repo:  event-hub
+  folder:  EventHubExperiment
+  repo:  experiment
 
 jobs:
   main:
-    # Disable job
-    if: false
     runs-on: ubuntu-latest
     environment:  dev
     
