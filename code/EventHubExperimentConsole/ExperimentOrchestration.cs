@@ -53,6 +53,7 @@ namespace EventHubExperimentConsole
                 ct);
             var logBlobClient =
                 await LogBlobClient<LogItem>.CreateAsync(logUri, CompactLogItems, credential, ct);
+            var instanceManager = new InstanceManager(config.ContainerAppId, credential);
 
             return new ExperimentOrchestration(folderName, config, logBlobClient);
         }
