@@ -237,6 +237,16 @@ namespace EventHubExperimentConsole
                         DateTime.Now.Add(REGISTRATION_TTL))),
                     null,
                     ct);
+                if (NodeItem != null)
+                {
+                    Console.WriteLine(
+                        $"Node ({_nodeId}) renewed registration with " +
+                        $"{NodeItem.SubExperimentName}:{NodeItem.SubExperimentNodeIndex}");
+                }
+                else
+                {
+                    Console.WriteLine($"Node ({_nodeId}) renewed registration with leader");
+                }
                 ct.ThrowIfCancellationRequested();
                 //  Pause
                 await Task.Delay(REGISTRATION_TTL / 2, ct);
