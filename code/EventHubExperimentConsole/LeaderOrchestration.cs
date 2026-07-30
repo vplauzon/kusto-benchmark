@@ -46,7 +46,8 @@ namespace EventHubExperimentConsole
             {
                 Console.WriteLine($"Await sub experiments completion");
                 await TaskHelper.Until(
-                    lastActiveSubExperimentItem.EndTime + BEFORE_EXPERIMENT_DURATION);
+                    lastActiveSubExperimentItem.EndTime + BEFORE_EXPERIMENT_DURATION,
+                    ct);
 
                 return true;
             }
