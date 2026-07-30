@@ -94,9 +94,13 @@ namespace EventHubExperimentConsole
                     }
                     else
                     {
-                        throw new NotImplementedException();
+                        var orchestration = new NonLeaderOrchestration(
+                            _experimentName,
+                            _config,
+                            _logBlobClient);
+
+                        await orchestration.ProcessAsync(ct);
                     }
-                    await Task.Delay(TimeSpan.FromDays(1));
                 }
             }
         }
