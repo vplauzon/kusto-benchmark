@@ -9,7 +9,7 @@ There are two types of nodes / instances of this application:
 *	`Benchmark` (see `BenchmarkOrchestration` class)
 
 `Program.Main` instantiates `MainOrchestration` which then decides which node type it should be
-and instantiates one of the other two orchestrators.  If no leader is running, leader will start,
+and instantiates one of the other two orchestrators.  If no leader is running, a leader will start,
 otherwise, a benchmark will start.
 
 `LeaderOrchestration` plans work for benchmark instances.  It can change the instance count in
@@ -20,11 +20,11 @@ next section).
 
 Typically a leader will start, register a few sub-experiments (as LogItems) and increase the number of
 container app instances.  New app instances will start, read the log, register as a sub-experiment
-node (binding the node with a sub experiment) and start running the experiment.
+node (binding the node with a sub-experiment) and start running the experiment.
 
 ## Log Item (`LogItem`)
 
-Logs have two item types (one and only one is non-`null`):
+Log has two item types, i.e. one and only one is non-`null`:
 
 *	`TtlRegistrationItem` - a node registration item
 *	`SubExperimentItem` - a sub-experiment item
@@ -43,7 +43,7 @@ A node type is determined by the value of `NodeItem`:
 *	non-`null` signals this is a benchmark node
 	* It has a sub-experiment name
 	* It has a sub-experiment index (more than one instance might be necessary to deliver the
-required throughput)
+	required throughput)
 
 ### SubExperimentItem
 
