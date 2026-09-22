@@ -223,7 +223,7 @@ namespace EventHubExperimentConsole
 
             while (!ct.IsCancellationRequested && !_registrationSource.Task.IsCompleted)
             {
-                if (lastClean.Add(CLEAN_REGISTRATION_DELAY) < DateTime.Now)
+                if (NodeItem == null && lastClean.Add(CLEAN_REGISTRATION_DELAY) < DateTime.Now)
                 {
                     await _logBlobClient.CompactAsync(ct);
                     lastClean = DateTime.Now;
