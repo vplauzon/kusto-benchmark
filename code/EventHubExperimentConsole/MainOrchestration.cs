@@ -4,7 +4,7 @@ using EventHubExperimentConsole.Items;
 
 namespace EventHubExperimentConsole
 {
-    internal class ExperimentOrchestration : IAsyncDisposable
+    internal class MainOrchestration : IAsyncDisposable
     {
         private readonly string _experimentName;
         private readonly ExperimentConfig _config;
@@ -12,7 +12,7 @@ namespace EventHubExperimentConsole
         private readonly InstanceManager _instanceManager;
 
         #region Constructors
-        private ExperimentOrchestration(
+        private MainOrchestration(
             string experimentName,
             ExperimentConfig config,
             LogBlobClient<LogItem> logBlobClient,
@@ -24,7 +24,7 @@ namespace EventHubExperimentConsole
             _instanceManager = instanceManager;
         }
 
-        public static async Task<ExperimentOrchestration> CreateAsync(
+        public static async Task<MainOrchestration> CreateAsync(
             CommandLineOptions options,
             CancellationToken ct)
         {
@@ -58,7 +58,7 @@ namespace EventHubExperimentConsole
                 await LogBlobClient<LogItem>.CreateAsync(logUri, CompactLogItems, credential, ct);
             var instanceManager = new InstanceManager(config.ContainerAppId, credential);
 
-            return new ExperimentOrchestration(folderName, config, logBlobClient, instanceManager);
+            return new MainOrchestration(folderName, config, logBlobClient, instanceManager);
         }
         #endregion
 
@@ -94,7 +94,7 @@ namespace EventHubExperimentConsole
                     }
                     else
                     {
-                        var orchestration = new NonLeaderOrchestration(
+                        var orchestration = new BenchmarkOrchestration(
                             _experimentName,
                             _config,
                             _logBlobClient);

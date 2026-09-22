@@ -1,17 +1,23 @@
 ﻿#	Overview
 
-This project compiles into a Console application meant to run in a container hosted in Azure Container App.
+This project compiles into a Console application meant to run in a container hosted in *Azure Container App*.
 
-There are two types of nodes / instances of this application:  the orchestrator and the experiment nodes.
-The orchestrator (see `ExperimentOrchestration`) is the one that is started first and it will start other instances of itself
-to run experiments.
+There are two types of nodes / instances of this application:
 
-The orchestrator can change the number of instances in Azure Container App using the `InstanceManager` class.
+*	Leader (see `LeaderOrchestration` class)
+*	`Benchmark` (see `BenchmarkOrchestration` class)
 
-The way the orchestrator and the other instances communicate is through an append blob controlled by `LogBlobClient<LogItem>`.
-Looking at `LogItem`, it can be either a node (instance) registration or an experiment a group of instances should run.  This
-is the communication mechanic.
+`Program.Main` instantiates `MainOrchestration` which then decides which node type it should be and instantiate one of the
+other two orchestrator.  If no node is running, leader will start, otherwise, a benchmark will start.
 
-Typically an orchestrator will start by itself, will register a few experiments (as LogItems) and will increase the number of
-container app instances.  New app will start, read the log, register as experiment node (binding the node with an experiment) and
-start running the experiment.
+`LeaderOrchestration` plans work for benchmark instances.  It can change instance number of in *Azure Container App* using
+the `InstanceManager` class.
+
+The way nodes communicate is through an append blob controlled by `LogBlobClient<LogItem>`.
+Looking at `LogItem`, it can be either a node registration (`TtlRegistrationItem`) or a sub-experiment (SubExperimentItem)
+a group of instances should run.  This is the communication mechanic.
+
+Typically a leader will start, register a few experiments (as LogItems) and increase the number of
+container app instances.  New app will start, read the log, register as sub-experiment node (binding the node with a sub
+experiment) and start running the experiment.
+

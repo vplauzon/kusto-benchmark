@@ -62,7 +62,7 @@ namespace EventHubExperimentConsole
                     Trace.WriteLine("");
                     Trace.WriteLine(options.ToString());
                     Trace.WriteLine("");
-                    await using (var orchestration = await ExperimentOrchestration.CreateAsync(
+                    await using (var orchestration = await MainOrchestration.CreateAsync(
                         options,
                         cancellationTokenSource.Token))
                     {

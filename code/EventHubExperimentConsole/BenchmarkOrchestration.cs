@@ -3,13 +3,13 @@ using EventHubExperimentConsole.Items;
 
 namespace EventHubExperimentConsole
 {
-    internal class NonLeaderOrchestration
+    internal class BenchmarkOrchestration
     {
         private readonly string _experimentName;
         private readonly ExperimentConfig _config;
         private readonly LogBlobClient<LogItem> _logBlobClient;
 
-        public NonLeaderOrchestration(
+        public BenchmarkOrchestration(
             string experimentName,
             ExperimentConfig config,
             LogBlobClient<LogItem> logBlobClient)
