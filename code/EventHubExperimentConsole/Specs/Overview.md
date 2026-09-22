@@ -27,7 +27,7 @@ node (binding the node with a sub-experiment) and start running the experiment.
 Log has two item types, i.e. one and only one is non-`null`:
 
 *	`TtlRegistrationItem` - a node registration item
-*	`SubExperimentItem` - a sub-experiment item
+*	`ExperimentStepItem` - a normalized experiment-step item
 
 ###	TtlRegistrationItem
 
@@ -45,13 +45,19 @@ A node type is determined by the value of `NodeItem`:
 	* It has a sub-experiment index (more than one instance might be necessary to deliver the
 	required throughput)
 
-### SubExperimentItem
+### ExperimentStepItem
 
-A `SubExperimentItem` doesn't represent a node.  It represents a work item for nodes to register
-against.
+An `ExperimentStepItem` doesn't represent a node.  It represents a time-bounded work item for nodes
+to register against.
 
-It specifies the name of the sub-experiment, the time window it should occur, the number of nodes
-that should participate and the throughput each node should deliver.
+It contains a `StartTime`, an `EndTime`, and a normalized list of `SubExperimentStepItem` entries.  Each
+entry describes one sub-experiment with its name, desired node count, and throughput target.
+
+### SubExperimentStepItem
+
+A `SubExperimentStepItem` is the normalized representation of a single work item in the step.  It
+specifies the name of the sub-experiment, the number of nodes that should participate, and the
+throughput each node should deliver.
 
 ###	Contention
 

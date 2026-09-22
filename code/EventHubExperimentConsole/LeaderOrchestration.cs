@@ -36,17 +36,17 @@ namespace EventHubExperimentConsole
         {
             var allItems = await _logBlobClient.LoadAllAsync(ct);
             var now = DateTime.Now;
-            var lastActiveSubExperimentItem = allItems.Result
-                .Where(i => i.SubExperimentItem != null)
-                .Select(i => i.SubExperimentItem!)
+            var lastActiveExperimentStepItem = allItems.Result
+                .Where(i => i.ExperimentStepItem != null)
+                .Select(i => i.ExperimentStepItem!)
                 .Where(i => i.EndTime > now + BEFORE_EXPERIMENT_DURATION)
                 .FirstOrDefault();
 
-            if (lastActiveSubExperimentItem != null)
+            if (lastActiveExperimentStepItem != null)
             {
                 Console.WriteLine($"Await sub experiments completion");
                 await TaskHelper.Until(
-                    lastActiveSubExperimentItem.EndTime + BEFORE_EXPERIMENT_DURATION,
+                    lastActiveExperimentStepItem.EndTime + BEFORE_EXPERIMENT_DURATION,
                     ct);
 
                 return true;
@@ -55,14 +55,21 @@ namespace EventHubExperimentConsole
             {
                 var startTime = DateTime.Now.Add(BEFORE_EXPERIMENT_DURATION);
                 var endTime = startTime.Add(_config.SubExperimentDuration);
-                var newItems = _config.SubExperiments
-                    .Select(s => LogItem.Create(new SubExperimentItem(
-                        s.SubExperimentName,
-                        1,
-                        s.ThroughputTargetStart,
+                var newItems = new[]
+                {
+                    LogItem.Create(new ExperimentStepItem(
                         startTime,
-                        endTime)));
-                var totalInstanceCount = 1 + newItems.Sum(i => i.SubExperimentItem!.NodeCount);
+                        endTime,
+                        _config.SubExperiments
+                            .Select(s => new SubExperimentStepItem(
+                                s.SubExperimentName,
+                                1,
+                                s.ThroughputTargetStart))
+                            .ToArray()))
+                };
+                var totalInstanceCount = 1 + newItems.Sum(i => i.ExperimentStepItem!
+                    .SubExperimentStepItems
+                    .Sum(s => s.NodeCount));
 
                 Console.WriteLine($"Creating sub experiments with {totalInstanceCount} nodes");
                 await _logBlobClient.AppendAsync(newItems, null, ct);

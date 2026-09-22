@@ -9,19 +9,19 @@ namespace EventHubExperimentConsole.Items
     /// i.e. one-and-only one will be non-null.
     /// </summary>
     /// <param name="TtlRegistrationItem"></param>
-    /// <param name="SubExperimentItem"></param>
+    /// <param name="ExperimentStepItem"></param>
     internal record LogItem(
         TtlRegistrationItem? TtlRegistrationItem,
-        SubExperimentItem? SubExperimentItem)
+        ExperimentStepItem? ExperimentStepItem)
     {
         public static LogItem Create(TtlRegistrationItem ttlRegistrationItem)
         {
             return new LogItem(ttlRegistrationItem, null);
         }
 
-        public static LogItem Create(SubExperimentItem subExperimentItem)
+        public static LogItem Create(ExperimentStepItem experimentStepItem)
         {
-            return new LogItem(null, subExperimentItem);
+            return new LogItem(null, experimentStepItem);
         }
     }
 }

@@ -162,20 +162,20 @@ namespace EventHubExperimentConsole
                 .Select(r => r.TtlRegistrationItem!)
                 .GroupBy(t => t.NodeItem!.SubExperimentName)
                 .ToDictionary(g => g.Key, g => g.Where(t => !t.IsExpired).ToArray());
-            var subExperimentItems = allItems
-                .Where(r => r.SubExperimentItem != null)
-                .Select(r => r.SubExperimentItem!);
+            var experimentStepItems = allItems
+                .Where(r => r.ExperimentStepItem != null)
+                .SelectMany(r => r.ExperimentStepItem!.SubExperimentStepItems);
 
-            foreach (var subExperimentItem in subExperimentItems)
+            foreach (var subExperimentStepItem in experimentStepItems)
             {
                 if (ttlRegistrationItemGroups.TryGetValue(
-                    subExperimentItem.SubExperimentName,
+                    subExperimentStepItem.SubExperimentName,
                     out var registrationItems))
                 {   //  Some registration available
                     //  Let's find the first one available
                     var takenIndexes = registrationItems
                         .Select(i => i.NodeItem!.SubExperimentNodeIndex);
-                    var indexAvailable = Enumerable.Range(0, subExperimentItem.NodeCount)
+                    var indexAvailable = Enumerable.Range(0, subExperimentStepItem.NodeCount)
                         .Except(takenIndexes)
                         .Take(1)
                         .ToArray();
@@ -187,7 +187,7 @@ namespace EventHubExperimentConsole
                         return await TryRegisterNodeAsync(
                             logBlobClient,
                             nodeId,
-                            new NodeItem(subExperimentItem.SubExperimentName, index),
+                            new NodeItem(subExperimentStepItem.SubExperimentName, index),
                             logTag,
                             ct);
                     }
@@ -198,7 +198,7 @@ namespace EventHubExperimentConsole
                     return await TryRegisterNodeAsync(
                         logBlobClient,
                         nodeId,
-                        new NodeItem(subExperimentItem.SubExperimentName, 0),
+                        new NodeItem(subExperimentStepItem.SubExperimentName, 0),
                         logTag,
                         ct);
                 }
