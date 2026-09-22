@@ -39,7 +39,7 @@ namespace EventHubExperimentConsole
             var lastActiveSubExperimentItem = allItems.Result
                 .Where(i => i.SubExperimentItem != null)
                 .Select(i => i.SubExperimentItem!)
-                .Where(i => i.EndTime < now + BEFORE_EXPERIMENT_DURATION)
+                .Where(i => i.EndTime > now + BEFORE_EXPERIMENT_DURATION)
                 .FirstOrDefault();
 
             if (lastActiveSubExperimentItem != null)

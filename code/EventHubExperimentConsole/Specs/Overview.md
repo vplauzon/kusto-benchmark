@@ -60,3 +60,11 @@ that should participate and the throughput each node should deliver.
 When an update is requested with an e-tag, if the e-tag doesn't represent the current state of the
 blob, the operation fails.  This forces the reader to read the blob again so that each update is
 done knowing the current state.
+
+##	Orchestration run
+
+A node never knows where it is at.  For a leader, it is very possible another node ran as leader and
+started sub-experiments and then failed.  Same for a benchmark node, it is possible another node ran
+as benchmark and started a sub-experiment but failed before completing it.
+
+For this reason, each node reads the log and determines what it should do.
