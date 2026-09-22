@@ -8,14 +8,12 @@ There are two types of nodes / instances of this application:
 *	`Benchmark` (see `BenchmarkOrchestration` class)
 
 `Program.Main` instantiates `MainOrchestration` which then decides which node type it should be and instantiate one of the
-other two orchestrators.  If no node is running, leader will start, otherwise, a benchmark will start.
+other two orchestrators.  If no leader is running, leader will start, otherwise, a benchmark will start.
 
-`LeaderOrchestration` plans work for benchmark instances.  It can change instance count of in *Azure Container App* using
+`LeaderOrchestration` plans work for benchmark instances.  It can change instance count in *Azure Container App* using
 the `InstanceManager` class.
 
-The way nodes communicate is through an append blob controlled by `LogBlobClient<LogItem>`.
-Looking at `LogItem`, it can be either a node registration (`TtlRegistrationItem`) or a sub-experiment (SubExperimentItem)
-a group of instances should run.  This is the communication mechanic.
+The way nodes communicate is through an append blob controlled by `LogBlobClient<LogItem>` (see next section).
 
 Typically a leader will start, register a few experiments (as LogItems) and increase the number of
 container app instances.  New app instances will start, read the log, register as sub-experiment node (binding the node with a sub
@@ -23,7 +21,7 @@ experiment) and start running the experiment.
 
 ## Log Item (`LogItem`)
 
-Logs has two types of items:
+Logs have two types:
 
 *	`TtlRegistrationItem` - a node registration item
 *	`SubExperimentItem` - a sub-experiment item
@@ -48,8 +46,12 @@ A node type is determined by the value of `NodeItem`:
 A `SubExperimentItem` doesn't represent a node.  It represents a work item for nodes to register against.
 
 It specifies the name of the sub-experiment, the time window it should occur, the number of nodes that
-should participate and the throughput each node shoudl deliver.
+should participate and the throughput each node should deliver.
 
 ###	Contention
 
-LogBlobClient<> takes care of contention optimistically by using tags.
+LogBlobClient<> takes care of contention optimistically by using e-tags (native to Azure Blob).
+
+When an update is requested with an e-tag, if the e-tag doesn't represent the current state of the blob,
+the operation fails.  This forces the reader to read the blob again so that each update is done knowing the
+current state.
