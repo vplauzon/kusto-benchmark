@@ -31,8 +31,8 @@ Log has two item types, i.e. one and only one is non-`null`:
 
 ###	TtlRegistrationItem
 
-This represents a node registration.  It has an `ExpirationTime` property (exposed through the
-`IsExpired` computed property) which is used to determine if the node is still alive.  If the node
+This represents a node registration.  It has an `ExpirationTime` property which is used to determine
+if the node is still alive.  If the node
 does not update its registration before the expiration time, it is considered dead and will be
 removed from the log.
 
