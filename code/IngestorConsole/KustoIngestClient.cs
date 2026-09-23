@@ -1,9 +1,7 @@
 ﻿using Azure.Core;
-using Kusto.Cloud.Platform.Data;
 using Kusto.Data;
 using Kusto.Data.Common;
 using Kusto.Data.Ingestion;
-using Kusto.Data.Net.Client;
 using Kusto.Ingest;
 using System;
 using System.Collections.Generic;
