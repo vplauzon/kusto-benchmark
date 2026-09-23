@@ -229,14 +229,10 @@ namespace EventHubExperimentConsole
                     lastClean = DateTime.Now;
                 }
                 ct.ThrowIfCancellationRequested();
+                //  Pause
+                await Task.Delay(REGISTRATION_TTL / 2, ct);
+                ct.ThrowIfCancellationRequested();
                 //  Update registration
-                await _logBlobClient.AppendAsync(
-                    LogItem.Create(new TtlRegistrationItem(
-                        NodeItem,
-                        _nodeId,
-                        DateTime.Now.Add(REGISTRATION_TTL))),
-                    null,
-                    ct);
                 if (NodeItem != null)
                 {
                     Console.WriteLine(
@@ -247,9 +243,13 @@ namespace EventHubExperimentConsole
                 {
                     Console.WriteLine($"Node ({_nodeId}) renewed registration with leader");
                 }
-                ct.ThrowIfCancellationRequested();
-                //  Pause
-                await Task.Delay(REGISTRATION_TTL / 2, ct);
+                await _logBlobClient.AppendAsync(
+                    LogItem.Create(new TtlRegistrationItem(
+                        NodeItem,
+                        _nodeId,
+                        DateTime.Now.Add(REGISTRATION_TTL))),
+                    null,
+                    ct);
             }
         }
     }
