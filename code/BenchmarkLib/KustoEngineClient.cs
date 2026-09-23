@@ -24,11 +24,10 @@ namespace BenchmarkLib
         private readonly string _dbName;
 
         #region Constructors
-        public KustoEngineClient(string dbUri, TokenCredential credential)
+        public KustoEngineClient(Uri dbUri, TokenCredential credential)
         {
-            var uri = new Uri(dbUri);
-            var dbName = uri.Segments[1];
-            var clusterUri = new Uri($"{uri.Scheme}://{uri.Host}");
+            var dbName = dbUri.Segments[1];
+            var clusterUri = new Uri($"{dbUri.Scheme}://{dbUri.Host}");
             var builder = new KustoConnectionStringBuilder(clusterUri.ToString())
                 .WithAadAzureTokenCredentialsAuthentication(credential);
             var queryProvider = KustoClientFactory.CreateCslQueryProvider(builder);

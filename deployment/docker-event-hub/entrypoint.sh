@@ -30,20 +30,8 @@ if [ -n "${templateName:-}" ]; then
   set -- "$@" -t "$templateName"
 fi
 
-if [ -n "${recordsPerPayload:-}" ]; then
-  set -- "$@" -r "$recordsPerPayload"
-fi
-
 if [ -n "${throughputTarget:-}" ]; then
   set -- "$@" --throughput-target "$throughputTarget"
-fi
-
-if [ -n "${maxTimeBetweenBatches:-}" ]; then
-  set -- "$@" --max-time-between-batches "$maxTimeBetweenBatches"
-fi
-
-if [ -n "${maxBatchSize:-}" ]; then
-  set -- "$@" --max-batch-size "$maxBatchSize"
 fi
 
 exec "$@"

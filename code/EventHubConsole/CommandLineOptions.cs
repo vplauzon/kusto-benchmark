@@ -37,29 +37,10 @@ namespace EventHubConsole
         public string TemplateName { get; set; } = string.Empty;
 
         [Option(
-            'r',
-            "records-per-payload",
-            Required = false,
-            HelpText = "Set the records per payload")]
-        public int RecordsPerPayload { get; set; } = 1;
-
-        [Option(
             "throughput-target",
             Required = false,
             HelpText = "Set the throughput target, in MBs/minute")]
         public int TargetThroughput { get; set; } = 10;
-
-        [Option(
-            "max-time-between-batches",
-            Required = false,
-            HelpText = "Maximum time between two consecutive event batches")]
-        public TimeSpan MaxTimeBetweenBatches { get; set; } = TimeSpan.FromSeconds(0.2);
-
-        [Option(
-            "max-batch-size",
-            Required = false,
-            HelpText = "Maximum size for an event batch (in number of events)")]
-        public int MaxBatchSize { get; set; } = 10;
 
         [Option(
             'c',
@@ -76,10 +57,7 @@ EventHub:  {EventHub}
 Event Hub connection string:  {EventHubConnectionString}
 DbUri:  {DbUri}
 Template Name:  {TemplateName}
-RecordsPerPayload:  {RecordsPerPayload}
 TargetThroughput (in MBs/minute):  {TargetThroughput}
-MaxTimeBetweenBatches:  {MaxTimeBetweenBatches}
-MaxBatchSize:  {MaxBatchSize}
 IsOutputCompressed:  {IsOutputCompressed}
 Authentication:  {Authentication}
 Source level:  {SourceLevel}";

@@ -287,9 +287,6 @@ namespace BenchmarkLib
 
         public int GenerateExpression(TextWriter writer)
         {
-#if DEBUG
-            var text = string.Concat(_generators.Select(g => g()));
-#endif
             var totalLength = 0;
 
             foreach (var generator in _generators)
@@ -302,6 +299,13 @@ namespace BenchmarkLib
             writer.Write('\n');
 
             return ++totalLength;
+        }
+
+        public string GenerateExpression()
+        {
+            var text = string.Concat(_generators.Select(g => g()));
+
+            return text;
         }
     }
 }

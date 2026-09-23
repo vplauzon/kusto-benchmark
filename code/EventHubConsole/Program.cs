@@ -65,7 +65,14 @@ namespace EventHubConsole
                     Trace.WriteLine(options.ToString());
                     Trace.WriteLine("");
                     await using (var orchestration = await EventHubOrchestration.CreateAsync(
-                        options,
+                        options.Authentication,
+                        new Uri(options.DbUri),
+                        options.TemplateName,
+                        options.EventHubConnectionString,
+                        options.Fqdn,
+                        options.EventHub,
+                        options.TargetThroughput,
+                        options.IsOutputCompressed,
                         cancellationTokenSource.Token))
                     {
                         Trace.WriteLine("Processing...");

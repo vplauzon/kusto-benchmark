@@ -22,9 +22,7 @@ namespace EventHubConsole
         private readonly ExpressionGenerator _generator;
         private readonly EventHubProducerClient _eventHubProducerClient;
         private readonly int _targetBytePerMinute;
-        private readonly int _recordsPerPayload;
-        private readonly TimeSpan _maxTimeBetweenBatches;
-        private readonly int _maxBatchSize;
+        private readonly int _targetBytePerBatch;
         private readonly bool _isOutputCompressed;
         private readonly ConcurrentQueue<MemoryStream> _streamQueue;
         private readonly ConcurrentQueue<Task> _sendTaskQueue = new();
@@ -34,17 +32,16 @@ namespace EventHubConsole
             ExpressionGenerator generator,
             EventHubProducerClient eventHubProducerClient,
             int targetMbPerMinute,
-            int recordsPerPayload,
-            TimeSpan maxTimeBetweenBatches,
-            int maxBatchSize,
             bool isOutputCompressed)
         {
+            var targetBytePerMinute = targetMbPerMinute * 1000000;
+            var targetBytePerSecond = targetBytePerMinute / 60;
+            var targetBytePerBatch = targetBytePerSecond / 10;
+
             _generator = generator;
             _eventHubProducerClient = eventHubProducerClient;
-            _targetBytePerMinute = targetMbPerMinute * 1000000;
-            _recordsPerPayload = recordsPerPayload;
-            _maxTimeBetweenBatches = maxTimeBetweenBatches;
-            _maxBatchSize = maxBatchSize;
+            _targetBytePerMinute = targetBytePerMinute;
+            _targetBytePerBatch = Math.Min(1, (int)targetBytePerBatch);
             _isOutputCompressed = isOutputCompressed;
             _streamQueue = new(Enumerable
                 .Range(0, PARALLEL_PARTITION)
@@ -52,27 +49,31 @@ namespace EventHubConsole
         }
 
         public static async Task<EventHubOrchestration> CreateAsync(
-            CommandLineOptions options,
+            string authentication,
+            Uri dbUri,
+            string templateName,
+            string eventHubConnectionString,
+            string eventHubFqdn,
+            string eventHubName,
+            int targetMbPerMinute,
+            bool isOutputCompressed,
             CancellationToken ct)
         {
-            var credentials = await CredentialFactory.CreateCredentialsAsync(options.Authentication);
-            var kustoEngineClient = new KustoEngineClient(options.DbUri, credentials);
-            var template = await kustoEngineClient.FetchTemplateAsync(options.TemplateName, ct);
+            var credentials = await CredentialFactory.CreateCredentialsAsync(authentication);
+            var kustoEngineClient = new KustoEngineClient(dbUri, credentials);
+            var template = await kustoEngineClient.FetchTemplateAsync(templateName, ct);
             var generator = await ExpressionGenerator.CreateAsync(template, kustoEngineClient, ct);
-            var eventHubProducerClient = string.IsNullOrEmpty(options.EventHubConnectionString)
-                ? new EventHubProducerClient(options.Fqdn, options.EventHub, credentials)
-                : new EventHubProducerClient(options.EventHubConnectionString);
+            var eventHubProducerClient = string.IsNullOrEmpty(eventHubConnectionString)
+                ? new EventHubProducerClient(eventHubFqdn, eventHubName, credentials)
+                : new EventHubProducerClient(eventHubConnectionString);
 
             Console.WriteLine($"Template:  {template}");
 
             return new EventHubOrchestration(
                 generator,
                 eventHubProducerClient,
-                options.TargetThroughput,
-                options.RecordsPerPayload,
-                options.MaxTimeBetweenBatches,
-                options.MaxBatchSize,
-                options.IsOutputCompressed);
+                targetMbPerMinute,
+                isOutputCompressed);
         }
         #endregion
 
@@ -99,9 +100,7 @@ namespace EventHubConsole
                 var deltaVolume = expectedVolume - volume;
                 var deltaTime = DateTime.Now - lastBatch;
 
-                if (deltaVolume > 0
-                    && (deltaVolume > _maxBatchSize || deltaTime > _maxTimeBetweenBatches)
-                    && _streamQueue.TryDequeue(out var stream))
+                if (deltaVolume > _targetBytePerBatch && _streamQueue.TryDequeue(out var stream))
                 {
                     var sendingOutput =
                         await SendDataAsync(deltaVolume, stream, metricWriter, ct);
@@ -153,40 +152,38 @@ namespace EventHubConsole
             long uncompressedVolume = 0;
             long compressedVolume = 0;
             long rowCount = 0;
+            var isBatchSealed = false;
             var stopwatch = new Stopwatch();
+            var i = 0;
 
             stopwatch.Start();
-            for (var i = 0; (i < _maxBatchSize && uncompressedVolume < targetVolume); ++i)
+            while (isBatchSealed && uncompressedVolume < targetVolume)
             {
                 Stream payloadStream = _isOutputCompressed
                     ? new GZipStream(outputStream, CompressionLevel.Fastest, true)
                     : outputStream;
                 long payloadUncompressedVolume = 0;
-                long payloadRowCount = 0;
 
                 outputStream.SetLength(0);
                 using (var writer = new StreamWriter(payloadStream, leaveOpen: true))
                 {
-                    for (var j = 0; j != _recordsPerPayload; ++j)
-                    {
-                        payloadUncompressedVolume += _generator.GenerateExpression(writer);
-                        ++payloadRowCount;
-                    }
+                    payloadUncompressedVolume += _generator.GenerateExpression(writer);
                 }
-                if (eventBatch.TryAdd(new EventData(outputStream.ToArray())))
+                isBatchSealed = eventBatch.TryAdd(new EventData(outputStream.ToArray()));
+                if (_isOutputCompressed)
+                {
+                    payloadStream.Dispose();
+                }
+                if (isBatchSealed)
                 {
                     uncompressedVolume += payloadUncompressedVolume;
-                    rowCount += payloadRowCount;
                     compressedVolume += outputStream.Length;
                 }
                 else
                 {
                     Console.WriteLine($"Can't add event #{i} to batch");
                 }
-                if (_isOutputCompressed)
-                {
-                    payloadStream.Dispose();
-                }
+                ++i;
             }
 
             var sendingTask = SendBatchAsync(eventBatch, outputStream);
