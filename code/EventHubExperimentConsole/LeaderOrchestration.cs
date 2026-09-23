@@ -54,10 +54,18 @@ namespace EventHubExperimentConsole
             }
             else
             {
-                var startTime = now.Add(BEFORE_EXPERIMENT_DURATION);
-                var endTime = startTime.Add(_config.SubExperimentDuration);
-                var newItems = new[]
-                {
+                await StartExperimentStepAsync(ct);
+
+                return true;
+            }
+        }
+
+        private async Task StartExperimentStepAsync(CancellationToken ct)
+        {
+            var startTime = DateTime.Now.Add(BEFORE_EXPERIMENT_DURATION);
+            var endTime = startTime.Add(_config.SubExperimentDuration);
+            var newItems = new[]
+            {
                     LogItem.Create(new ExperimentStepItem(
                         startTime,
                         endTime,
@@ -68,17 +76,14 @@ namespace EventHubExperimentConsole
                                 s.ThroughputTargetStart))
                             .ToArray()))
                 };
-                var totalInstanceCount = 1 + newItems.Sum(i => i.ExperimentStepItem!
-                    .SubExperimentStepItems
-                    .Sum(s => s.NodeCount));
+            var totalInstanceCount = 1 + newItems.Sum(i => i.ExperimentStepItem!
+                .SubExperimentStepItems
+                .Sum(s => s.NodeCount));
 
-                Console.WriteLine($"Starting experiment step with {totalInstanceCount} nodes");
-                await _instanceManager.SetInstanceCountAsync(totalInstanceCount, ct);
-                await _logBlobClient.AppendAsync(newItems, null, ct);
-                Console.WriteLine($"Experiment step created");
-
-                return true;
-            }
+            Console.WriteLine($"Starting experiment step with {totalInstanceCount} nodes");
+            await _instanceManager.SetInstanceCountAsync(totalInstanceCount, ct);
+            await _logBlobClient.AppendAsync(newItems, null, ct);
+            Console.WriteLine($"Experiment step created");
         }
     }
 }
