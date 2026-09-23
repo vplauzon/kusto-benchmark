@@ -97,7 +97,8 @@ namespace EventHubExperimentConsole
                         var orchestration = new BenchmarkOrchestration(
                             _experimentName,
                             _config,
-                            _logBlobClient);
+                            _logBlobClient,
+                            registration.NodeItem);
 
                         await orchestration.ProcessAsync(ct);
                     }
