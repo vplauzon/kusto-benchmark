@@ -166,7 +166,9 @@ namespace EventHubExperimentConsole
             var experimentStepItems = allItems
                 .Where(r => r.ExperimentStepItem != null)
                 .Select(r => r.ExperimentStepItem!)
-                .Where(s => s.EndTime < now);
+                //  Only active or upcoming steps can be registered against
+                .Where(s => s.EndTime > now)
+                .OrderByDescending(s => s.StartTime);
 
             foreach (var experimentStepItem in experimentStepItems)
             {
