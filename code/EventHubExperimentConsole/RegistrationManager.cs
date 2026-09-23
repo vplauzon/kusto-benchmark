@@ -221,7 +221,7 @@ namespace EventHubExperimentConsole
         {
             var lastClean = DateTime.MinValue;
 
-            while (!ct.IsCancellationRequested && !_registrationSource.Task.IsCompleted)
+            while (!_registrationSource.Task.IsCompleted)
             {
                 if (NodeItem == null && lastClean.Add(CLEAN_REGISTRATION_DELAY) < DateTime.Now)
                 {
@@ -230,26 +230,28 @@ namespace EventHubExperimentConsole
                 }
                 ct.ThrowIfCancellationRequested();
                 //  Pause
-                await Task.Delay(REGISTRATION_TTL / 2, ct);
+                await Task.WhenAny(Task.Delay(REGISTRATION_TTL / 2, ct), _registrationSource.Task);
                 ct.ThrowIfCancellationRequested();
-                //  Update registration
-                if (NodeItem != null)
-                {
-                    Console.WriteLine(
-                        $"Node ({_nodeId}) renewed registration with " +
-                        $"{NodeItem.SubExperimentName}:{NodeItem.SubExperimentNodeIndex}");
+                if (!_registrationSource.Task.IsCompleted)
+                {   //  Update registration
+                    if (NodeItem != null)
+                    {
+                        Console.WriteLine(
+                            $"Node ({_nodeId}) renewed registration with " +
+                            $"{NodeItem.SubExperimentName}:{NodeItem.SubExperimentNodeIndex}");
+                    }
+                    else
+                    {
+                        Console.WriteLine($"Node ({_nodeId}) renewed registration with leader");
+                    }
+                    await _logBlobClient.AppendAsync(
+                        LogItem.Create(new TtlRegistrationItem(
+                            NodeItem,
+                            _nodeId,
+                            DateTime.Now.Add(REGISTRATION_TTL))),
+                        null,
+                        ct);
                 }
-                else
-                {
-                    Console.WriteLine($"Node ({_nodeId}) renewed registration with leader");
-                }
-                await _logBlobClient.AppendAsync(
-                    LogItem.Create(new TtlRegistrationItem(
-                        NodeItem,
-                        _nodeId,
-                        DateTime.Now.Add(REGISTRATION_TTL))),
-                    null,
-                    ct);
             }
         }
     }
