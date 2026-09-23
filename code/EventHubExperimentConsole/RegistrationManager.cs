@@ -195,7 +195,11 @@ namespace EventHubExperimentConsole
                             return await TryRegisterNodeAsync(
                                 logBlobClient,
                                 nodeId,
-                                new NodeItem(subExperimentName, index),
+                                new NodeItem(
+                                    subExperimentName,
+                                    index,
+                                    experimentStepItem.StartTime,
+                                    experimentStepItem.EndTime),
                                 logTag,
                                 ct);
                         }
@@ -206,7 +210,11 @@ namespace EventHubExperimentConsole
                         return await TryRegisterNodeAsync(
                             logBlobClient,
                             nodeId,
-                            new NodeItem(subExperimentName, 0),
+                            new NodeItem(
+                                subExperimentName,
+                                0,
+                                experimentStepItem.StartTime,
+                                experimentStepItem.EndTime),
                             logTag,
                             ct);
                     }
