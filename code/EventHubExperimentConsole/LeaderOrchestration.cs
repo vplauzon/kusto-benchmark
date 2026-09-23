@@ -36,54 +36,94 @@ namespace EventHubExperimentConsole
         {
             var allItems = await _logBlobClient.LoadAllAsync(ct);
             var now = DateTime.Now;
-            var activeExperimentStepItems = allItems.Result
+            var experimentStepItems = allItems.Result
                 .Where(i => i.ExperimentStepItem != null)
                 .Select(i => i.ExperimentStepItem!)
                 .OrderByDescending(i => i.StartTime)
                 .ToArray();
 
-            if (activeExperimentStepItems.Length != 0
-                && activeExperimentStepItems[0].EndTime > now + BEFORE_EXPERIMENT_DURATION)
+            if (experimentStepItems.Length != 0
+                && experimentStepItems[0].EndTime > now + BEFORE_EXPERIMENT_DURATION)
             {
                 Console.WriteLine($"Await sub experiments completion");
                 await TaskHelper.Until(
-                    activeExperimentStepItems[0].EndTime + BEFORE_EXPERIMENT_DURATION,
+                    experimentStepItems[0].EndTime + BEFORE_EXPERIMENT_DURATION,
                     ct);
 
                 return true;
             }
             else
             {
-                await StartExperimentStepAsync(ct);
-
-                return true;
+                return await StartExperimentStepAsync(experimentStepItems, ct);
             }
         }
 
-        private async Task StartExperimentStepAsync(CancellationToken ct)
+        private async Task<bool> StartExperimentStepAsync(
+            ExperimentStepItem[] experimentStepItems,
+            CancellationToken ct)
         {
             var startTime = DateTime.Now.Add(BEFORE_EXPERIMENT_DURATION);
             var endTime = startTime.Add(_config.SubExperimentDuration);
-            var newItems = new[]
-            {
-                    LogItem.Create(new ExperimentStepItem(
-                        startTime,
-                        endTime,
-                        _config.SubExperiments
-                            .Select(s => new SubExperimentStepItem(
-                                s.SubExperimentName,
-                                1,
-                                s.ThroughputTargetStart))
-                            .ToArray()))
-                };
-            var totalInstanceCount = 1 + newItems.Sum(i => i.ExperimentStepItem!
-                .SubExperimentStepItems
-                .Sum(s => s.NodeCount));
+            var subExperimentStepItemTasks = _config.SubExperiments
+                .Select(s => CreateSubExperimentStepAsync(s, experimentStepItems, ct))
+                .ToArray();
 
-            Console.WriteLine($"Starting experiment step with {totalInstanceCount} nodes");
-            await _instanceManager.SetInstanceCountAsync(totalInstanceCount, ct);
-            await _logBlobClient.AppendAsync(newItems, null, ct);
-            Console.WriteLine($"Experiment step created");
+            await Task.WhenAll(subExperimentStepItemTasks);
+
+            var subExperimentStepItemPairs = subExperimentStepItemTasks
+                .Select(t => t.Result)
+                .Where(r => r != null)
+                .Select(r => r!.Value)
+                .ToArray();
+
+            if (subExperimentStepItemPairs.Length != 0)
+            {
+                var newItem = LogItem.Create(new ExperimentStepItem(
+                    startTime,
+                    endTime,
+                    subExperimentStepItemPairs.ToDictionary()));
+                var totalInstanceCount = 1 + newItem.ExperimentStepItem!
+                    .SubExperimentStepItemMap
+                    .Values
+                    .Sum(s => s.NodeCount);
+
+                Console.WriteLine($"Starting experiment step with {totalInstanceCount} nodes");
+                await _instanceManager.SetInstanceCountAsync(totalInstanceCount, ct);
+                await _logBlobClient.AppendAsync(newItem, null, ct);
+                Console.WriteLine($"Experiment step created");
+                return true;
+            }
+            else
+            {
+                return false;
+            }
+        }
+
+        private async Task<KeyValuePair<string, SubExperimentStepItem>?> CreateSubExperimentStepAsync(
+            SubExperimentConfig subExperimentConfig,
+            ExperimentStepItem[] experimentStepItems,
+            CancellationToken ct)
+        {
+            await Task.CompletedTask;
+
+            if (experimentStepItems.Length == 0)
+            {
+                return KeyValuePair.Create(
+                    subExperimentConfig.SubExperimentName,
+                    new SubExperimentStepItem(1, subExperimentConfig.ThroughputTargetStart));
+            }
+            else if (experimentStepItems[0].SubExperimentStepItemMap.TryGetValue(
+                subExperimentConfig.SubExperimentName,
+                out var lastSubExperimentItem))
+            {
+                return KeyValuePair.Create(
+                    subExperimentConfig.SubExperimentName,
+                    new SubExperimentStepItem(1, subExperimentConfig.ThroughputTargetStart));
+            }
+            else
+            {
+                return null;
+            }
         }
     }
 }

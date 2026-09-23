@@ -162,45 +162,54 @@ namespace EventHubExperimentConsole
                 .Select(r => r.TtlRegistrationItem!)
                 .GroupBy(t => t.NodeItem!.SubExperimentName)
                 .ToDictionary(g => g.Key, g => g.Where(t => !t.IsExpired).ToArray());
+            var now = DateTime.Now;
             var experimentStepItems = allItems
                 .Where(r => r.ExperimentStepItem != null)
-                .SelectMany(r => r.ExperimentStepItem!.SubExperimentStepItems);
+                .Select(r => r.ExperimentStepItem!)
+                .Where(s => s.EndTime < now);
 
-            foreach (var subExperimentStepItem in experimentStepItems)
+            foreach (var experimentStepItem in experimentStepItems)
             {
-                if (ttlRegistrationItemGroups.TryGetValue(
-                    subExperimentStepItem.SubExperimentName,
-                    out var registrationItems))
-                {   //  Some registration available
-                    //  Let's find the first one available
-                    var takenIndexes = registrationItems
-                        .Select(i => i.NodeItem!.SubExperimentNodeIndex);
-                    var indexAvailable = Enumerable.Range(0, subExperimentStepItem.NodeCount)
-                        .Except(takenIndexes)
-                        .Take(1)
-                        .ToArray();
+                foreach (var pair in experimentStepItem.SubExperimentStepItemMap)
+                {
+                    var subExperimentName = pair.Key;
+                    var subExperimentStepItem = pair.Value;
 
-                    if (indexAvailable.Length == 1)
-                    {   //  One index is available
-                        var index = indexAvailable[0];
+                    if (ttlRegistrationItemGroups.TryGetValue(
+                        subExperimentName,
+                        out var registrationItems))
+                    {   //  Some registration present
+                        //  Let's find the first one available
+                        var takenIndexes = registrationItems
+                            .Select(i => i.NodeItem!.SubExperimentNodeIndex);
+                        //  We take-1 because first-or-default would return 0 if none is available
+                        var indexAvailable = Enumerable.Range(0, subExperimentStepItem.NodeCount)
+                            .Except(takenIndexes)
+                            .Take(1)
+                            .ToArray();
 
+                        if (indexAvailable.Length == 1)
+                        {   //  One index is available
+                            var index = indexAvailable[0];
+
+                            return await TryRegisterNodeAsync(
+                                logBlobClient,
+                                nodeId,
+                                new NodeItem(subExperimentName, index),
+                                logTag,
+                                ct);
+                        }
+                    }
+                    else
+                    {   //  No registration available for that sub experiment:
+                        //  let's register the first one
                         return await TryRegisterNodeAsync(
                             logBlobClient,
                             nodeId,
-                            new NodeItem(subExperimentStepItem.SubExperimentName, index),
+                            new NodeItem(subExperimentName, 0),
                             logTag,
                             ct);
                     }
-                }
-                else
-                {   //  No registration available for that sub experiment:
-                    //  let's register the first one
-                    return await TryRegisterNodeAsync(
-                        logBlobClient,
-                        nodeId,
-                        new NodeItem(subExperimentStepItem.SubExperimentName, 0),
-                        logTag,
-                        ct);
                 }
             }
 
