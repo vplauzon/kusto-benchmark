@@ -36,24 +36,25 @@ namespace EventHubExperimentConsole
         {
             var allItems = await _logBlobClient.LoadAllAsync(ct);
             var now = DateTime.Now;
-            var lastActiveExperimentStepItem = allItems.Result
+            var activeExperimentStepItems = allItems.Result
                 .Where(i => i.ExperimentStepItem != null)
                 .Select(i => i.ExperimentStepItem!)
-                .Where(i => i.EndTime > now + BEFORE_EXPERIMENT_DURATION)
-                .FirstOrDefault();
+                .OrderByDescending(i => i.StartTime)
+                .ToArray();
 
-            if (lastActiveExperimentStepItem != null)
+            if (activeExperimentStepItems.Length != 0
+                && activeExperimentStepItems[0].EndTime > now + BEFORE_EXPERIMENT_DURATION)
             {
                 Console.WriteLine($"Await sub experiments completion");
                 await TaskHelper.Until(
-                    lastActiveExperimentStepItem.EndTime + BEFORE_EXPERIMENT_DURATION,
+                    activeExperimentStepItems[0].EndTime + BEFORE_EXPERIMENT_DURATION,
                     ct);
 
                 return true;
             }
             else
             {
-                var startTime = DateTime.Now.Add(BEFORE_EXPERIMENT_DURATION);
+                var startTime = now.Add(BEFORE_EXPERIMENT_DURATION);
                 var endTime = startTime.Add(_config.SubExperimentDuration);
                 var newItems = new[]
                 {
@@ -71,10 +72,10 @@ namespace EventHubExperimentConsole
                     .SubExperimentStepItems
                     .Sum(s => s.NodeCount));
 
-                Console.WriteLine($"Creating sub experiments with {totalInstanceCount} nodes");
-                await _logBlobClient.AppendAsync(newItems, null, ct);
+                Console.WriteLine($"Starting experiment step with {totalInstanceCount} nodes");
                 await _instanceManager.SetInstanceCountAsync(totalInstanceCount, ct);
-                Console.WriteLine($"Sub experiments created");
+                await _logBlobClient.AppendAsync(newItems, null, ct);
+                Console.WriteLine($"Experiment step created");
 
                 return true;
             }
