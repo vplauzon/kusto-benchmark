@@ -36,6 +36,12 @@ namespace EventHubExperimentConsole.Orchestration
                         .Where(c => c.SubExperimentName == _nodeItem.SubExperimentName)
                         .First();
                     var eventHubOrchestration = await EventHubOrchestration.CreateAsync(
+                        ["ExperimentName", "SubExperimentName", "NodeIndex", "ThroughputTarget"],
+                        [
+                            _experimentName,
+                            _nodeItem.SubExperimentName,
+                            _nodeItem.SubExperimentNodeIndex.ToString(),
+                            _nodeItem.ThroughputTarget.ToString()],
                         "System",
                         new Uri(_config.TemplateDbUri),
                         _config.TemplateName,
