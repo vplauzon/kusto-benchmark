@@ -25,4 +25,8 @@
 		<ProjectReference Include="..\BenchmarkLib\BenchmarkLib.csproj" />
 	</ItemGroup>
 
+	<ItemGroup>
+	  <Folder Include="Orchestration\" />
+	</ItemGroup>
+
 </Project>

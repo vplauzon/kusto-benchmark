@@ -1,4 +1,5 @@
 ﻿using BenchmarkLib;
+using EventHubExperimentConsole.Orchestration;
 using System.Diagnostics;
 
 namespace EventHubExperimentConsole

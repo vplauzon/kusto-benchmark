@@ -1,7 +1,7 @@
 ﻿using EventHubExperimentConsole.Configuration;
 using EventHubExperimentConsole.Items;
 
-namespace EventHubExperimentConsole
+namespace EventHubExperimentConsole.Orchestration
 {
     internal class LeaderOrchestration
     {
