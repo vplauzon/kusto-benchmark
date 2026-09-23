@@ -4,5 +4,6 @@
         string SubExperimentName,
         int SubExperimentNodeIndex,
         DateTime StartTime,
-        DateTime EndTime);
+        DateTime EndTime,
+        int ThroughputTarget);
 }

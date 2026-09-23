@@ -6,7 +6,7 @@ using System.Text.Json;
 namespace EventHubExperimentConsole.Configuration
 {
     internal record ExperimentConfig(
-        string TemplateDb,
+        string TemplateDbUri,
         string TemplateName,
         string ContainerAppId,
         EventHubConfig EventHubConfiguration,

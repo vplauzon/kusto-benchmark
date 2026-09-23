@@ -9,7 +9,7 @@ using System.Text;
 
 namespace EventHubConsole
 {
-    internal class EventHubOrchestration : IAsyncDisposable
+    public class EventHubOrchestration : IAsyncDisposable
     {
         #region Inner Types
         private record BatchSendingOutput(long VolumeSent, Task SendingTask);
@@ -24,6 +24,7 @@ namespace EventHubConsole
         private readonly int _targetBytePerMinute;
         private readonly int _targetBytePerBatch;
         private readonly bool _isOutputCompressed;
+        private readonly TimeSpan? _duration;
         private readonly ConcurrentQueue<MemoryStream> _streamQueue;
         private readonly ConcurrentQueue<Task> _sendTaskQueue = new();
 
@@ -32,7 +33,8 @@ namespace EventHubConsole
             ExpressionGenerator generator,
             EventHubProducerClient eventHubProducerClient,
             int targetMbPerMinute,
-            bool isOutputCompressed)
+            bool isOutputCompressed,
+            TimeSpan? duration)
         {
             var targetBytePerMinute = targetMbPerMinute * 1000000;
             var targetBytePerSecond = targetBytePerMinute / 60;
@@ -43,6 +45,7 @@ namespace EventHubConsole
             _targetBytePerMinute = targetBytePerMinute;
             _targetBytePerBatch = Math.Min(1, (int)targetBytePerBatch);
             _isOutputCompressed = isOutputCompressed;
+            _duration = duration;
             _streamQueue = new(Enumerable
                 .Range(0, PARALLEL_PARTITION)
                 .Select(i => new MemoryStream()));
@@ -57,6 +60,7 @@ namespace EventHubConsole
             string eventHubName,
             int targetMbPerMinute,
             bool isOutputCompressed,
+            TimeSpan? duration,
             CancellationToken ct)
         {
             var credentials = await CredentialFactory.CreateCredentialsAsync(authentication);
@@ -73,7 +77,8 @@ namespace EventHubConsole
                 generator,
                 eventHubProducerClient,
                 targetMbPerMinute,
-                isOutputCompressed);
+                isOutputCompressed,
+                duration);
         }
         #endregion
 
@@ -91,7 +96,8 @@ namespace EventHubConsole
             var lastBatch = DateTime.MinValue;
 
             watch.Start();
-            while (!ct.IsCancellationRequested)
+            while (!ct.IsCancellationRequested
+                && (_duration == null || watch.Elapsed < _duration))
             {
                 await ObserveSendTasksAsync();
 

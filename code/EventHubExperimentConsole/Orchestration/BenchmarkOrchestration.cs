@@ -1,4 +1,5 @@
-﻿using EventHubExperimentConsole.Configuration;
+﻿using EventHubConsole;
+using EventHubExperimentConsole.Configuration;
 using EventHubExperimentConsole.Items;
 
 namespace EventHubExperimentConsole.Orchestration
@@ -31,7 +32,22 @@ namespace EventHubExperimentConsole.Orchestration
                 ct.ThrowIfCancellationRequested();
                 if (_nodeItem.EndTime > now)
                 {
-                    await Task.Delay(_nodeItem.EndTime - now, ct);
+                    var subExperimentConfig = _config.SubExperiments
+                        .Where(c => c.SubExperimentName == _nodeItem.SubExperimentName)
+                        .First();
+                    var eventHubOrchestration = await EventHubOrchestration.CreateAsync(
+                        "System",
+                        new Uri(_config.TemplateDbUri),
+                        _config.TemplateName,
+                        subExperimentConfig.EventHubConnectionString,
+                        string.Empty,
+                        string.Empty,
+                        _nodeItem.ThroughputTarget,
+                        false,
+                        _nodeItem.EndTime - now,
+                        ct);
+
+                    await eventHubOrchestration.ProcessAsync(ct);
                 }
             }
         }

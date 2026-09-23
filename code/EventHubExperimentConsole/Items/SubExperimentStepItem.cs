@@ -1,4 +1,4 @@
 ﻿namespace EventHubExperimentConsole.Items
 {
-    internal record SubExperimentStepItem(int NodeCount, double ThroughputTarget);
+    internal record SubExperimentStepItem(int NodeCount, int ThroughputTarget);
 }

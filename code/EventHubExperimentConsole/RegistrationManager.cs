@@ -201,7 +201,8 @@ namespace EventHubExperimentConsole
                                     subExperimentName,
                                     index,
                                     experimentStepItem.StartTime,
-                                    experimentStepItem.EndTime),
+                                    experimentStepItem.EndTime,
+                                    subExperimentStepItem.ThroughputTarget),
                                 logTag,
                                 ct);
                         }
@@ -216,7 +217,8 @@ namespace EventHubExperimentConsole
                                 subExperimentName,
                                 0,
                                 experimentStepItem.StartTime,
-                                experimentStepItem.EndTime),
+                                experimentStepItem.EndTime,
+                                subExperimentStepItem.ThroughputTarget),
                             logTag,
                             ct);
                     }
