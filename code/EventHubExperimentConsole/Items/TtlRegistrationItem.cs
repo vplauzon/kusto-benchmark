@@ -1,4 +1,6 @@
-﻿namespace EventHubExperimentConsole.Items
+﻿using System.Text.Json.Serialization;
+
+namespace EventHubExperimentConsole.Items
 {
     internal record TtlRegistrationItem(
         //  Null only for orchestration node ; non-null for experiment node
@@ -6,6 +8,7 @@
         Guid NodeId,
         DateTime ExpirationTime)
     {
+        [JsonIgnore]
         public bool IsExpired => ExpirationTime < DateTime.Now;
     }
 }
