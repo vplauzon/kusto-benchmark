@@ -13,20 +13,20 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-		<PackageReference Include="Azure.ResourceManager.AppContainers" Version="1.5.0" />
-		<PackageReference Include="Azure.Storage.Blobs" Version="12.29.1" />
+		<PackageReference Include="Azure.ResourceManager.AppContainers" Version="1.6.0" />
+		<PackageReference Include="Azure.Storage.Blobs" Version="12.29.2" />
 		<PackageReference Include="Azure.Storage.Files.DataLake" Version="12.27.1" />
-		<PackageReference Include="Microsoft.Azure.Kusto.Data" Version="14.2.0" />
+		<PackageReference Include="Microsoft.Azure.Kusto.Data" Version="14.2.2" />
 		<PackageReference Include="CommandLineParser" Version="2.9.1" />
-		<PackageReference Include="SharpYaml" Version="3.13.0" />
-	</ItemGroup>
-
-	<ItemGroup>
-		<ProjectReference Include="..\BenchmarkLib\BenchmarkLib.csproj" />
+		<PackageReference Include="SharpYaml" Version="3.13.1" />
 	</ItemGroup>
 
 	<ItemGroup>
 	  <Folder Include="Orchestration\" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <ProjectReference Include="..\EventHubConsole\EventHubConsole.csproj" />
 	</ItemGroup>
 
 </Project>

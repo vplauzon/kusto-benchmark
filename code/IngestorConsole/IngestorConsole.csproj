@@ -17,9 +17,7 @@
 
   <ItemGroup>
     <PackageReference Include="CommandLineParser" Version="2.9.1" />
-    <PackageReference Include="Microsoft.Azure.Kusto.Data" Version="14.2.0" />
-    <PackageReference Include="Microsoft.Azure.Kusto.Ingest" Version="14.2.0" />
-    <PackageReference Include="Polly" Version="8.7.0" />
+    <PackageReference Include="Polly" Version="8.8.0" />
   </ItemGroup>
 
   <ItemGroup>
