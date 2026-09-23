@@ -179,7 +179,7 @@ namespace EventHubConsole
             var stopwatch = new Stopwatch();
 
             stopwatch.Start();
-            while (isBatchSealed && uncompressedVolume < targetVolume)
+            while (!isBatchSealed && uncompressedVolume < targetVolume)
             {
                 Stream payloadStream = _isOutputCompressed
                     ? new GZipStream(outputStream, CompressionLevel.Fastest, true)
