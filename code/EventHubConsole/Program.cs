@@ -1,5 +1,6 @@
 ﻿using Azure.Core.Diagnostics;
 using BenchmarkLib;
+using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Diagnostics.Tracing;
 
@@ -65,6 +66,8 @@ namespace EventHubConsole
                     Trace.WriteLine(options.ToString());
                     Trace.WriteLine("");
                     await using (var orchestration = await EventHubOrchestration.CreateAsync(
+                        [],
+                        [],
                         options.Authentication,
                         new Uri(options.DbUri),
                         options.TemplateName,

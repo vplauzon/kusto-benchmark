@@ -3,6 +3,7 @@ using Azure.Messaging.EventHubs.Producer;
 using BenchmarkLib;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Diagnostics;
 using System.IO.Compression;
 using System.Text;
@@ -17,8 +18,14 @@ namespace EventHubConsole
 
         //  Hard coded constant, just to better exploit networking capacity
         private const int PARALLEL_PARTITION = 5;
+        private const string BATCH_COUNT = "BatchCount";
+        private const string RECORD_COUNT = "RecordCount";
+        private const string UNCOMPRESSED_SIZE = "UncompressedSize";
+        private const string COMPRESSED_SIZE = "CompressedSize";
         private static readonly TimeSpan PAUSE_DURATION = TimeSpan.FromMicroseconds(0.1);
 
+        private readonly IImmutableList<string> _dimensionNames;
+        private readonly IImmutableList<string> _dimensionValues;
         private readonly ExpressionGenerator _generator;
         private readonly EventHubProducerClient _eventHubProducerClient;
         private readonly int _targetBytePerMinute;
@@ -30,6 +37,8 @@ namespace EventHubConsole
 
         #region Constructors
         private EventHubOrchestration(
+            IEnumerable<string> dimensionNames,
+            IEnumerable<string> dimensionValues,
             ExpressionGenerator generator,
             EventHubProducerClient eventHubProducerClient,
             int targetMbPerMinute,
@@ -39,7 +48,8 @@ namespace EventHubConsole
             var targetBytePerMinute = targetMbPerMinute * 1000000;
             var targetBytePerSecond = targetBytePerMinute / 60;
             var targetBytePerBatch = targetBytePerSecond / 10;
-
+            _dimensionNames = dimensionNames.ToImmutableArray();
+            _dimensionValues = dimensionValues.ToImmutableArray();
             _generator = generator;
             _eventHubProducerClient = eventHubProducerClient;
             _targetBytePerMinute = targetBytePerMinute;
@@ -52,6 +62,8 @@ namespace EventHubConsole
         }
 
         public static async Task<EventHubOrchestration> CreateAsync(
+            IEnumerable<string> dimensionNames,
+            IEnumerable<string> dimensionValues,
             string authentication,
             Uri dbUri,
             string templateName,
@@ -74,6 +86,8 @@ namespace EventHubConsole
             Console.WriteLine($"Template:  {template}");
 
             return new EventHubOrchestration(
+                dimensionNames,
+                dimensionValues,
                 generator,
                 eventHubProducerClient,
                 targetMbPerMinute,
@@ -90,7 +104,10 @@ namespace EventHubConsole
 
         public async Task ProcessAsync(CancellationToken ct)
         {
-            await using var metricWriter = new IngestionMetricWriter();
+            await using var metricWriter = new MetricWriter(
+                _dimensionNames,
+                [BATCH_COUNT, RECORD_COUNT, UNCOMPRESSED_SIZE, COMPRESSED_SIZE],
+                TimeSpan.FromSeconds(5));
             var watch = new Stopwatch();
             var volume = (long)0;
             var lastBatch = DateTime.MinValue;
@@ -151,7 +168,7 @@ namespace EventHubConsole
         private async Task<BatchSendingOutput> SendDataAsync(
             long targetVolume,
             MemoryStream outputStream,
-            IngestionMetricWriter metricWriter,
+            MetricWriter metricWriter,
             CancellationToken ct)
         {
             var eventBatch = await _eventHubProducerClient.CreateBatchAsync(ct);
@@ -160,7 +177,6 @@ namespace EventHubConsole
             long rowCount = 0;
             var isBatchSealed = false;
             var stopwatch = new Stopwatch();
-            var i = 0;
 
             stopwatch.Start();
             while (isBatchSealed && uncompressedVolume < targetVolume)
@@ -175,30 +191,29 @@ namespace EventHubConsole
                 {
                     payloadUncompressedVolume += _generator.GenerateExpression(writer);
                 }
-                isBatchSealed = eventBatch.TryAdd(new EventData(outputStream.ToArray()));
+                isBatchSealed = !eventBatch.TryAdd(new EventData(outputStream.ToArray()));
                 if (_isOutputCompressed)
                 {
                     payloadStream.Dispose();
                 }
-                if (isBatchSealed)
+                if (!isBatchSealed)
                 {
                     uncompressedVolume += payloadUncompressedVolume;
                     compressedVolume += outputStream.Length;
+                    ++rowCount;
                 }
                 else
                 {
-                    Console.WriteLine($"Can't add event #{i} to batch");
+                    Console.WriteLine($"Can't add event #{rowCount} to batch");
                 }
-                ++i;
             }
 
             var sendingTask = SendBatchAsync(eventBatch, outputStream);
 
-            metricWriter.Write(
-                stopwatch.Elapsed,
-                uncompressedVolume,
-                compressedVolume,
-                rowCount);
+            metricWriter.WriteMetric(_dimensionValues, BATCH_COUNT, 1);
+            metricWriter.WriteMetric(_dimensionValues, RECORD_COUNT, rowCount);
+            metricWriter.WriteMetric(_dimensionValues, UNCOMPRESSED_SIZE, uncompressedVolume);
+            metricWriter.WriteMetric(_dimensionValues, COMPRESSED_SIZE, compressedVolume);
 
             return new BatchSendingOutput(uncompressedVolume, sendingTask);
         }
