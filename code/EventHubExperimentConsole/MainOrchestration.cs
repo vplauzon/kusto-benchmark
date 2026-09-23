@@ -114,6 +114,7 @@ namespace EventHubExperimentConsole
                 //  Keep last registered item (by experiment name / node index)
                 .GroupBy(i => i.TtlRegistrationItem!.NodeItem)
                 .Select(g => g.OrderBy(i => i.TtlRegistrationItem!.ExpirationTime).Last());
+            //  We keep all the steps
             var experimentStepItems = items
                 .Where(i => i.ExperimentStepItem != null);
 
