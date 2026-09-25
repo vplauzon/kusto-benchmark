@@ -37,7 +37,7 @@ namespace EventHubExperimentConsole.Orchestration
                 var subExperimentConfig = _config.SubExperiments
                     .Where(c => c.SubExperimentName == _nodeItem.SubExperimentName)
                     .First();
-                var eventHubOrchestration = await EventHubOrchestration.CreateAsync(
+                await using var eventHubOrchestration = await EventHubOrchestration.CreateAsync(
                     ["ExperimentName", "SubExperimentName", "NodeIndex", "ThroughputTarget"],
                     [
                         _experimentName,
