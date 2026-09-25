@@ -52,7 +52,7 @@ namespace EventHubExperimentConsole.Orchestration
                     string.Empty,
                     _nodeItem.ThroughputTarget,
                     false,
-                    _nodeItem.EndTime - DateTime.UtcNow,
+                    _nodeItem.EndTime,
                     ct);
 
                 await eventHubOrchestration.ProcessAsync(ct);

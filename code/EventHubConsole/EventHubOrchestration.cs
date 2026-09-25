@@ -31,7 +31,7 @@ namespace EventHubConsole
         private readonly int _targetBytePerMinute;
         private readonly int _targetBytePerBatch;
         private readonly bool _isOutputCompressed;
-        private readonly TimeSpan? _duration;
+        private readonly DateTime _endTime;
         private readonly ConcurrentQueue<MemoryStream> _streamQueue;
         private readonly ConcurrentQueue<Task> _sendTaskQueue = new();
 
@@ -43,7 +43,7 @@ namespace EventHubConsole
             EventHubProducerClient eventHubProducerClient,
             int targetMbPerMinute,
             bool isOutputCompressed,
-            TimeSpan? duration)
+            DateTime endTime)
         {
             var targetBytePerMinute = targetMbPerMinute * 1000000;
             var targetBytePerSecond = targetBytePerMinute / 60;
@@ -55,7 +55,7 @@ namespace EventHubConsole
             _targetBytePerMinute = targetBytePerMinute;
             _targetBytePerBatch = Math.Min(1, (int)targetBytePerBatch);
             _isOutputCompressed = isOutputCompressed;
-            _duration = duration;
+            _endTime = endTime;
             _streamQueue = new(Enumerable
                 .Range(0, PARALLEL_PARTITION)
                 .Select(i => new MemoryStream()));
@@ -72,7 +72,7 @@ namespace EventHubConsole
             string eventHubName,
             int targetMbPerMinute,
             bool isOutputCompressed,
-            TimeSpan? duration,
+            DateTime endTime,
             CancellationToken ct)
         {
             var credentials = await CredentialFactory.CreateCredentialsAsync(authentication);
@@ -92,7 +92,7 @@ namespace EventHubConsole
                 eventHubProducerClient,
                 targetMbPerMinute,
                 isOutputCompressed,
-                duration);
+                endTime);
         }
         #endregion
 
@@ -113,8 +113,7 @@ namespace EventHubConsole
             var lastBatch = DateTime.MinValue;
 
             watch.Start();
-            while (!ct.IsCancellationRequested
-                && (_duration == null || watch.Elapsed < _duration))
+            while (!ct.IsCancellationRequested && DateTime.Now < _endTime)
             {
                 await ObserveSendTasksAsync();
 
