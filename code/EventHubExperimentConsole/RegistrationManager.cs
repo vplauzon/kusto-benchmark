@@ -16,17 +16,20 @@ namespace EventHubExperimentConsole
         private readonly Guid _nodeId;
         private readonly TaskCompletionSource _registrationSource = new();
         private readonly Task _backgroundTask;
+        private string _currentLogTag = string.Empty;
 
         #region Constructor
         private RegistrationManager(
             LogBlobClient<LogItem> logBlobClient,
             Guid nodeId,
             NodeItem? nodeItem,
+            string initialLogTag,
             CancellationToken ct)
         {
             _logBlobClient = logBlobClient;
             _nodeId = nodeId;
             NodeItem = nodeItem;
+            _currentLogTag = initialLogTag;
             _backgroundTask = RunBackgroundAsync(ct);
         }
 
@@ -59,6 +62,7 @@ namespace EventHubExperimentConsole
                         logBlobClient,
                         nodeId,
                         result.NodeItem,
+                        result.LogTag,
                         ct);
                 }
                 else
@@ -70,7 +74,7 @@ namespace EventHubExperimentConsole
             }
         }
 
-        private static async Task<(bool Success, NodeItem? NodeItem)> TryRegisterAsync(
+        private static async Task<(bool Success, NodeItem? NodeItem, string LogTag)> TryRegisterAsync(
             LogBlobClient<LogItem> logBlobClient,
             Guid nodeId,
             CancellationToken ct)
@@ -104,12 +108,12 @@ namespace EventHubExperimentConsole
                 {
                     Console.WriteLine($"No registration available for node ({nodeId})");
 
-                    return (false, null);
+                    return (false, null, allItemsResult.Tag);
                 }
             }
         }
 
-        private static async Task<(bool Success, NodeItem? NodeItem)> TryRegisterLeaderAsync(
+        private static async Task<(bool Success, NodeItem? NodeItem, string LogTag)> TryRegisterLeaderAsync(
             LogBlobClient<LogItem> logBlobClient,
             string logTag,
             IImmutableList<LogItem> allItems,
@@ -124,15 +128,16 @@ namespace EventHubExperimentConsole
 
             if (leaderRegistrationItem != null && !leaderRegistrationItem.IsExpired)
             {
-                return (false, null);
+                return (false, null, logTag);
             }
             else
             {
-                return await TryRegisterNodeAsync(logBlobClient, nodeId, null, logTag, ct);
+                var result = await TryRegisterNodeAsync(logBlobClient, nodeId, null, logTag, ct);
+                return (result.Success, result.NodeItem, logTag);
             }
         }
 
-        private static async Task<(bool Success, NodeItem? NodeItem)> TryRegisterNodeAsync(
+        private static async Task<(bool Success, NodeItem? NodeItem, string LogTag)> TryRegisterNodeAsync(
             LogBlobClient<LogItem> logBlobClient,
             Guid nodeId,
             NodeItem? nodeItem,
@@ -147,10 +152,10 @@ namespace EventHubExperimentConsole
                 logTag,
                 ct);
 
-            return (success, nodeItem);
+            return (success, nodeItem, logTag);
         }
 
-        private static async Task<(bool Success, NodeItem? NodeItem)> TryRegisterNonLeaderAsync(
+        private static async Task<(bool Success, NodeItem? NodeItem, string LogTag)> TryRegisterNonLeaderAsync(
             LogBlobClient<LogItem> logBlobClient,
             string logTag,
             IImmutableList<LogItem> allItems,
@@ -194,7 +199,7 @@ namespace EventHubExperimentConsole
                         {   //  One index is available
                             var index = indexAvailable[0];
 
-                            return await TryRegisterNodeAsync(
+                            var result = await TryRegisterNodeAsync(
                                 logBlobClient,
                                 nodeId,
                                 new NodeItem(
@@ -205,12 +210,13 @@ namespace EventHubExperimentConsole
                                     subExperimentStepItem.ThroughputTarget),
                                 logTag,
                                 ct);
+                            return (result.Success, result.NodeItem, logTag);
                         }
                     }
                     else
                     {   //  No registration available for that sub experiment:
                         //  let's register the first one
-                        return await TryRegisterNodeAsync(
+                        var result = await TryRegisterNodeAsync(
                             logBlobClient,
                             nodeId,
                             new NodeItem(
@@ -221,11 +227,12 @@ namespace EventHubExperimentConsole
                                 subExperimentStepItem.ThroughputTarget),
                             logTag,
                             ct);
+                        return (result.Success, result.NodeItem, logTag);
                     }
                 }
             }
 
-            return (false, null);
+            return (false, null, logTag);
         }
         #endregion
         #endregion
@@ -265,13 +272,32 @@ namespace EventHubExperimentConsole
                     {
                         Console.WriteLine($"Node ({_nodeId}) renewed registration with leader");
                     }
-                    await _logBlobClient.AppendAsync(
+
+                    var renewalSucceeded = await _logBlobClient.AppendAsync(
                         LogItem.Create(new TtlRegistrationItem(
                             NodeItem,
                             _nodeId,
                             DateTime.Now.Add(REGISTRATION_TTL))),
-                        null,
+                        _currentLogTag,
                         ct);
+
+                    if (!renewalSucceeded && NodeItem == null)
+                    {
+                        // Leader renewal failed with e-tag mismatch: split brain detected!
+                        // Another node has taken over the leader role.
+                        var message =
+                            $"FATAL: Node ({_nodeId}) lost leader lease due to split brain condition. " +
+                            $"Another node has taken over the leader role. Crashing the process.";
+                        Console.Error.WriteLine(message);
+                        Environment.FailFast(message);
+                    }
+
+                    if (renewalSucceeded)
+                    {
+                        // Update the tag after successful renewal
+                        var allItems = await _logBlobClient.LoadAllAsync(ct);
+                        _currentLogTag = allItems.Tag;
+                    }
                 }
             }
         }
