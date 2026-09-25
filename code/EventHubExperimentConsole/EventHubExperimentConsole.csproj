@@ -22,10 +22,6 @@
 	</ItemGroup>
 
 	<ItemGroup>
-	  <Folder Include="Orchestration\" />
-	</ItemGroup>
-
-	<ItemGroup>
 	  <ProjectReference Include="..\EventHubConsole\EventHubConsole.csproj" />
 	</ItemGroup>
 
