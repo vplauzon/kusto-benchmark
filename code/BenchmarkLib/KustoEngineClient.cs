@@ -2,7 +2,6 @@
 using Kusto.Cloud.Platform.Data;
 using Kusto.Data;
 using Kusto.Data.Common;
-using Kusto.Data.Ingestion;
 using Kusto.Data.Net.Client;
 using System;
 using System.Collections;
@@ -37,9 +36,7 @@ namespace BenchmarkLib
         }
         #endregion
 
-        public async Task<string> FetchTemplateAsync(
-            string templateName,
-            CancellationToken ct)
+        public async Task<string> FetchTemplateAsync(string templateName, CancellationToken ct)
         {
             var query = $@"
 Template

@@ -4,14 +4,14 @@ using EventHubExperimentConsole.Items;
 
 namespace EventHubExperimentConsole.Orchestration
 {
-    internal class BenchmarkOrchestration
+    internal class SubExperimentOrchestration
     {
         private readonly string _experimentName;
         private readonly ExperimentConfig _config;
         private readonly LogBlobClient<LogItem> _logBlobClient;
         private readonly NodeItem _nodeItem;
 
-        public BenchmarkOrchestration(
+        public SubExperimentOrchestration(
             string experimentName,
             ExperimentConfig config,
             LogBlobClient<LogItem> logBlobClient,

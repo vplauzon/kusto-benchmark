@@ -94,7 +94,7 @@ namespace EventHubExperimentConsole.Orchestration
                     }
                     else
                     {
-                        var orchestration = new BenchmarkOrchestration(
+                        var orchestration = new SubExperimentOrchestration(
                             _experimentName,
                             _config,
                             _logBlobClient,

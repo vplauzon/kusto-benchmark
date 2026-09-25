@@ -4,5 +4,6 @@ namespace EventHubExperimentConsole.Configuration
         string SubExperimentName,
         string IngestionTable,
         string EventHubConnectionString,
-        int ThroughputTargetStart);
+        int ThroughputTargetStart,
+        int ThroughputPrecision);
 }

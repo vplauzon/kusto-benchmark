@@ -6,13 +6,13 @@ This project compiles into a Console application meant to run in a container hos
 There are two types of nodes / instances of this application:
 
 *	Leader (see `LeaderOrchestration` class)
-*	`Benchmark` (see `BenchmarkOrchestration` class)
+*	`Sub-experiment` (see `SubExperimentOrchestration` class)
 
 `Program.Main` instantiates `MainOrchestration` which delegates the node-type decision to
 `RegistrationManager` and then instantiates one of the other two orchestrators.  If no leader is
-running, a leader will start, otherwise, a benchmark will start.
+running, a leader will start, otherwise, a sub-experiment will start.
 
-`LeaderOrchestration` plans work for benchmark instances.  It can change the instance count in
+`LeaderOrchestration` plans work for sub-experiment instances.  It can change the instance count in
 *Azure Container Apps* using the `InstanceManager` class.
 
 The way nodes communicate is through an append blob controlled by `LogBlobClient<LogItem>` (see
@@ -41,12 +41,12 @@ A node is identified with a `NodeId` (a GUID) which remains the same as long as 
 A node type is determined by the value of `NodeItem`:
 
 *	`null` signals this is the leader node
-*	non-`null` signals this is a benchmark node
+*	non-`null` signals this is a sub-experiment node
 	* It has a sub-experiment name
 	* It has a sub-experiment index (more than one instance might be necessary to deliver the
 	required throughput)
 	* It has a `StartTime` and an `EndTime`, copied from the experiment step the node registered
-	against ; a benchmark node runs until that `EndTime`
+	against ; a sub-experiment node runs until that `EndTime`
 
 ### ExperimentStepItem
 
@@ -80,7 +80,7 @@ operation is retried.
 ##	Orchestration run
 
 A node never knows where it is at.  For a leader, it is very possible another node ran as leader and
-started sub-experiments and then failed.  Same for a benchmark node, it is possible another node ran
-as benchmark and started a sub-experiment but failed before completing it.
+started sub-experiments and then failed.  Same for a sub-experiment node, it is possible another node ran
+as sub-experiment and started a sub-experiment but failed before completing it.
 
 For this reason, each node reads the log and determines what it should do.
