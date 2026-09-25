@@ -116,7 +116,6 @@ namespace EventHubExperimentConsole.Orchestration
 
                 var lastThroughputTarget = lastSubExperimentItem.ThroughputTarget;
                 var historicalThroughputTargets = experimentStepItems
-                    .Skip(1)
                     .Select(s => s.SubExperimentStepItemMap[subExperimentConfig.SubExperimentName])
                     .Select(i => i.ThroughputTarget)
                     .Reverse();
