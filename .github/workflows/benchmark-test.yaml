@@ -1,4 +1,4 @@
-name: BenchmarkTest
+name: Benchmark Unit Test
 
 on:
   pull_request:
