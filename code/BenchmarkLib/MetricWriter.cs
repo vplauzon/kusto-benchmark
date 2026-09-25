@@ -17,7 +17,7 @@ namespace BenchmarkLib
         private readonly IImmutableList<string> _metricNames;
         private readonly TimeSpan _publishPeriod;
         private readonly ConcurrentQueue<Metric> _metricQueue = new();
-        private readonly CancellationTokenSource _cts = new CancellationTokenSource();
+        private readonly TaskCompletionSource _tcs = new();
         private readonly Task _backgroundTask;
 
         #region Construction
@@ -29,13 +29,13 @@ namespace BenchmarkLib
             _dimensionNames = dimensionNames.ToImmutableArray();
             _metricNames = metricNames.ToImmutableArray();
             _publishPeriod = publishPeriod;
-            _backgroundTask = PublishAsync(_cts.Token);
+            _backgroundTask = PublishAsync(_tcs.Task);
         }
         #endregion
 
         async ValueTask IAsyncDisposable.DisposeAsync()
         {
-            _cts.Cancel();
+            _tcs.TrySetResult();
             await _backgroundTask;
         }
 
@@ -48,22 +48,14 @@ namespace BenchmarkLib
                 metricValue));
         }
 
-        private async Task PublishAsync(CancellationToken ct)
+        private async Task PublishAsync(Task completionTask)
         {
             IImmutableList<Metric> remainMetrics = ImmutableArray<Metric>.Empty;
 
-            try
+            while (!completionTask.IsCompleted)
             {
-                while (!ct.IsCancellationRequested)
-                {
-                    await Task.Delay(_publishPeriod, ct);
-                    remainMetrics = PublishMetrics(remainMetrics, false);
-                }
-            }
-            catch
-            {
-                PublishMetrics(remainMetrics, true);
-                throw;
+                await Task.WhenAny(Task.Delay(_publishPeriod), completionTask);
+                remainMetrics = PublishMetrics(remainMetrics, completionTask.IsCompleted);
             }
         }
 
