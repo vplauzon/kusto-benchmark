@@ -9,6 +9,6 @@ namespace EventHubExperimentConsole.Items
         DateTime ExpirationTime)
     {
         [JsonIgnore]
-        public bool IsExpired => ExpirationTime < DateTime.Now;
+        public bool IsExpired => ExpirationTime < DateTime.UtcNow;
     }
 }

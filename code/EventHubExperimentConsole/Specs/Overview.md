@@ -84,6 +84,23 @@ to a temporary blob which is then renamed (through the ADLS endpoint) over the l
 on the e-tag read at the start.  If the rename fails, the temporary blob is deleted and the whole
 operation is retried.
 
+An e-tag mismatch only means the blob changed since it was read.  Since every node appends its own
+registration renewals, and the leader appends experiment steps and compacts the blob, mismatches are
+expected and frequent:  they must never be interpreted as a node losing its registration.
+
+###	Registration renewal and split brain
+
+`RegistrationManager` renews its registration every half TTL.  A renewal re-reads the log (getting a
+fresh e-tag), verifies ownership, then appends conditionally ; on e-tag mismatch it reloads and
+retries.
+
+Ownership is verified against the log content, not against the e-tag:  a node has lost its slot when
+a non-expired `TtlRegistrationItem` from another `NodeId` covers the same slot (the leader slot for
+`NodeItem == null`, or the same sub-experiment name and node index otherwise).  A leader which lost
+its slot is a genuine split brain and crashes the process ; a sub-experiment node logs a warning.
+
+All times written to the log (`ExpirationTime`, step `StartTime` / `EndTime`) are UTC.
+
 ##	Orchestration run
 
 A node never knows where it is at.  For a leader, it is very possible another node ran as leader and

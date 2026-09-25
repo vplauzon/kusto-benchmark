@@ -11,6 +11,8 @@ namespace EventHubExperimentConsole
         private static readonly TimeSpan REGISTRATION_TTL = TimeSpan.FromSeconds(30);
         private static readonly TimeSpan AWAIT_REGISTRATION_DELAY = TimeSpan.FromSeconds(5);
         private static readonly TimeSpan CLEAN_REGISTRATION_DELAY = TimeSpan.FromMinutes(5);
+        private static readonly TimeSpan RENEWAL_RETRY_DELAY = TimeSpan.FromMilliseconds(200);
+        private const int MAX_RENEWAL_ATTEMPTS = 10;
 
         private readonly LogBlobClient<LogItem> _logBlobClient;
         private readonly Guid _nodeId;
@@ -148,7 +150,7 @@ namespace EventHubExperimentConsole
                 LogItem.Create(new TtlRegistrationItem(
                     nodeItem,
                     nodeId,
-                    DateTime.Now.Add(REGISTRATION_TTL))),
+                    DateTime.UtcNow.Add(REGISTRATION_TTL))),
                 logTag,
                 ct);
 
@@ -167,7 +169,7 @@ namespace EventHubExperimentConsole
                 .Select(r => r.TtlRegistrationItem!)
                 .GroupBy(t => t.NodeItem!.SubExperimentName)
                 .ToDictionary(g => g.Key, g => g.Where(t => !t.IsExpired).ToArray());
-            var now = DateTime.Now;
+            var now = DateTime.UtcNow;
             var experimentStepItems = allItems
                 .Where(r => r.ExperimentStepItem != null)
                 .Select(r => r.ExperimentStepItem!)
@@ -251,10 +253,10 @@ namespace EventHubExperimentConsole
 
             while (!_registrationSource.Task.IsCompleted)
             {
-                if (NodeItem == null && lastClean.Add(CLEAN_REGISTRATION_DELAY) < DateTime.Now)
-                {
+                if (NodeItem == null && lastClean.Add(CLEAN_REGISTRATION_DELAY) < DateTime.UtcNow)
+                {   //  Compaction rewrites the blob:  the cached tag is stale afterwards
                     await _logBlobClient.CompactAsync(ct);
-                    lastClean = DateTime.Now;
+                    lastClean = DateTime.UtcNow;
                 }
                 ct.ThrowIfCancellationRequested();
                 //  Pause
@@ -262,6 +264,38 @@ namespace EventHubExperimentConsole
                 ct.ThrowIfCancellationRequested();
                 if (!_registrationSource.Task.IsCompleted)
                 {   //  Update registration
+                    await RenewRegistrationAsync(ct);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Renews the registration of this node.
+        /// An e-tag mismatch simply means another node appended to the log (another node
+        /// renewing its own registration, a new experiment step, a compaction, etc.):  it is
+        /// not a sign of split brain, so the renewal is retried against the current state.
+        /// Split brain is detected by inspecting the log itself:  another node holding a
+        /// non-expired registration on the same slot.
+        /// </summary>
+        private async Task RenewRegistrationAsync(CancellationToken ct)
+        {
+            for (var attempt = 0; attempt != MAX_RENEWAL_ATTEMPTS; ++attempt)
+            {
+                var allItems = await _logBlobClient.LoadAllAsync(ct);
+
+                _currentLogTag = allItems.Tag;
+                DetectSlotTakeOver(allItems.Result);
+
+                var renewalSucceeded = await _logBlobClient.AppendAsync(
+                    LogItem.Create(new TtlRegistrationItem(
+                        NodeItem,
+                        _nodeId,
+                        DateTime.UtcNow.Add(REGISTRATION_TTL))),
+                    _currentLogTag,
+                    ct);
+
+                if (renewalSucceeded)
+                {
                     if (NodeItem != null)
                     {
                         Console.WriteLine(
@@ -273,32 +307,58 @@ namespace EventHubExperimentConsole
                         Console.WriteLine($"Node ({_nodeId}) renewed registration with leader");
                     }
 
-                    var renewalSucceeded = await _logBlobClient.AppendAsync(
-                        LogItem.Create(new TtlRegistrationItem(
-                            NodeItem,
-                            _nodeId,
-                            DateTime.Now.Add(REGISTRATION_TTL))),
-                        _currentLogTag,
-                        ct);
-
-                    if (!renewalSucceeded && NodeItem == null)
-                    {
-                        // Leader renewal failed with e-tag mismatch: split brain detected!
-                        // Another node has taken over the leader role.
-                        var message =
-                            $"FATAL: Node ({_nodeId}) lost leader lease due to split brain condition. " +
-                            $"Another node has taken over the leader role. Crashing the process.";
-                        Console.Error.WriteLine(message);
-                        Environment.FailFast(message);
-                    }
-
-                    if (renewalSucceeded)
-                    {
-                        // Update the tag after successful renewal
-                        var allItems = await _logBlobClient.LoadAllAsync(ct);
-                        _currentLogTag = allItems.Tag;
-                    }
+                    return;
                 }
+                //  Concurrent append:  reload and retry against the new state
+                await Task.Delay(RENEWAL_RETRY_DELAY, ct);
+            }
+
+            throw new InvalidOperationException(
+                $"Node ({_nodeId}) couldn't renew its registration after " +
+                $"{MAX_RENEWAL_ATTEMPTS} attempts");
+        }
+
+        private void DetectSlotTakeOver(IImmutableList<LogItem> allItems)
+        {
+            var conflictingItem = allItems
+                .Where(i => i.TtlRegistrationItem != null)
+                .Select(i => i.TtlRegistrationItem!)
+                .Where(i => !i.IsExpired)
+                .Where(i => i.NodeId != _nodeId)
+                .FirstOrDefault(i => IsSameSlot(i.NodeItem, NodeItem));
+
+            if (conflictingItem != null)
+            {
+                if (NodeItem == null)
+                {
+                    var message =
+                        $"FATAL: Node ({_nodeId}) lost leader lease due to split brain " +
+                        $"condition.  Node ({conflictingItem.NodeId}) has taken over the " +
+                        $"leader role.  Crashing the process.";
+
+                    Console.Error.WriteLine(message);
+                    Environment.FailFast(message);
+                }
+                else
+                {
+                    Console.Error.WriteLine(
+                        $"WARNING:  Node ({_nodeId}) registration on " +
+                        $"{NodeItem.SubExperimentName}:{NodeItem.SubExperimentNodeIndex} " +
+                        $"is also held by node ({conflictingItem.NodeId})");
+                }
+            }
+        }
+
+        private static bool IsSameSlot(NodeItem? left, NodeItem? right)
+        {
+            if (left == null || right == null)
+            {
+                return left == null && right == null;
+            }
+            else
+            {
+                return left.SubExperimentName == right.SubExperimentName
+                    && left.SubExperimentNodeIndex == right.SubExperimentNodeIndex;
             }
         }
     }
