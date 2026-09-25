@@ -52,6 +52,7 @@ namespace EventHubExperimentConsole.Orchestration
             }
 
             var lastThroughput = throughputs[^1];
+
             if (hasLastSucceeded)
             {
                 var lowestFailedThroughput = throughputs
@@ -92,6 +93,7 @@ namespace EventHubExperimentConsole.Orchestration
             int throughputPrecision)
         {
             var gap = (long)failedThroughput - successfulThroughput;
+
             if (gap <= throughputPrecision)
             {
                 return null;

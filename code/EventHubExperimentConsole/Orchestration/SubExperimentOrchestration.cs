@@ -56,6 +56,7 @@ namespace EventHubExperimentConsole.Orchestration
                     ct);
 
                 await eventHubOrchestration.ProcessAsync(ct);
+                Console.WriteLine("Completed sub experiment");
             }
         }
     }

@@ -6,7 +6,7 @@ namespace EventHubExperimentConsole.Orchestration
     internal class LeaderOrchestration
     {
         private readonly static TimeSpan BEFORE_EXPERIMENT_DURATION = TimeSpan.FromSeconds(30);
-        
+
         private readonly static TimeSpan AFTER_EXPERIMENT_DURATION = TimeSpan.FromMinutes(1);
 
         private readonly string _experimentName;
@@ -56,43 +56,39 @@ namespace EventHubExperimentConsole.Orchestration
             }
             else
             {
-                return await StartExperimentStepAsync(experimentStepItems, ct);
+                return await ScheduleSubExperimentStepsAsync(experimentStepItems, ct);
             }
         }
 
-        private async Task<bool> StartExperimentStepAsync(
+        private async Task<bool> ScheduleSubExperimentStepsAsync(
             ExperimentStepItem[] experimentStepItems,
             CancellationToken ct)
         {
-            var startTime = DateTime.UtcNow.Add(BEFORE_EXPERIMENT_DURATION);
-            var endTime = startTime.Add(_config.SubExperimentDuration);
-            var subExperimentStepItemTasks = _config.SubExperiments
-                .Select(s => CreateSubExperimentStepAsync(s, experimentStepItems, ct))
+            var subExperimentStepItemPairTasks = _config.SubExperiments
+                .Select(c => CreateSubExperimentStepItemPairAsync(c, experimentStepItems, ct))
                 .ToArray();
 
-            await Task.WhenAll(subExperimentStepItemTasks);
+            await Task.WhenAll(subExperimentStepItemPairTasks);
 
-            var subExperimentStepItemMap = subExperimentStepItemTasks
+            var startTime = DateTime.UtcNow.Add(BEFORE_EXPERIMENT_DURATION);
+            var endTime = startTime.Add(_config.SubExperimentDuration);
+            var subExperimentStepItemMap = subExperimentStepItemPairTasks
                 .Select(t => t.Result)
-                .Where(r => r != null)
-                .Select(r => r!.Value)
+                .Where(p => p != null)
+                .Select(p => p!.Value)
                 .ToDictionary();
 
-            if (subExperimentStepItemMap.Count != 0)
+            if (subExperimentStepItemMap.Count > 0)
             {
-                var newItem = LogItem.Create(new ExperimentStepItem(
-                    startTime,
-                    endTime,
-                    subExperimentStepItemMap));
-                var totalInstanceCount = 1 + newItem.ExperimentStepItem!
-                    .SubExperimentStepItemMap
-                    .Values
-                    .Sum(s => s.NodeCount);
+                var logItem = LogItem.Create(
+                    new ExperimentStepItem(startTime, endTime, subExperimentStepItemMap));
+                var totalInstanceCount = 1 + subExperimentStepItemMap.Values.Sum(s => s.NodeCount);
 
                 Console.WriteLine($"Starting experiment step with {totalInstanceCount} nodes");
                 await _instanceManager.SetInstanceCountAsync(totalInstanceCount, ct);
-                await _logBlobClient.AppendAsync(newItem, null, ct);
+                await _logBlobClient.AppendAsync(logItem, null, ct);
                 Console.WriteLine($"Experiment step created");
+
                 return true;
             }
             else
@@ -101,13 +97,11 @@ namespace EventHubExperimentConsole.Orchestration
             }
         }
 
-        private async Task<KeyValuePair<string, SubExperimentStepItem>?> CreateSubExperimentStepAsync(
+        private async Task<KeyValuePair<string, SubExperimentStepItem>?> CreateSubExperimentStepItemPairAsync(
             SubExperimentConfig subExperimentConfig,
             ExperimentStepItem[] experimentStepItems,
             CancellationToken ct)
         {
-            await Task.CompletedTask;
-
             if (experimentStepItems.Length == 0)
             {
                 return KeyValuePair.Create(
@@ -118,9 +112,30 @@ namespace EventHubExperimentConsole.Orchestration
                 subExperimentConfig.SubExperimentName,
                 out var lastSubExperimentItem))
             {
-                return KeyValuePair.Create(
-                    subExperimentConfig.SubExperimentName,
-                    new SubExperimentStepItem(1, subExperimentConfig.ThroughputTargetStart));
+                await Task.CompletedTask;
+
+                var lastThroughputTarget = lastSubExperimentItem.ThroughputTarget;
+                var historicalThroughputTargets = experimentStepItems
+                    .Skip(1)
+                    .Select(s => s.SubExperimentStepItemMap[subExperimentConfig.SubExperimentName])
+                    .Select(i => i.ThroughputTarget)
+                    .Reverse();
+                var hasLastSubExperimentSucceeded = true;
+                var nextThroughputTarget = new ThroughputPlanner().ComputeNextThroughput(
+                    hasLastSubExperimentSucceeded,
+                    historicalThroughputTargets,
+                    _config.ThroughputPrecision);
+
+                if (nextThroughputTarget != null)
+                {
+                    return KeyValuePair.Create(
+                        subExperimentConfig.SubExperimentName,
+                        new SubExperimentStepItem(1, subExperimentConfig.ThroughputTargetStart));
+                }
+                else
+                {
+                    return null;
+                }
             }
             else
             {
