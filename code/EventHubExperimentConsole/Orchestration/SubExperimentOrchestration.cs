@@ -25,36 +25,37 @@ namespace EventHubExperimentConsole.Orchestration
 
         public async Task ProcessAsync(CancellationToken ct)
         {
-            while (_nodeItem.EndTime > DateTime.Now)
+            var delayStart = _nodeItem.StartTime - DateTime.Now;
+
+            if (delayStart > TimeSpan.Zero)
             {
-                var now = DateTime.Now;
+                await Task.Delay(delayStart);
+            }
+            ct.ThrowIfCancellationRequested();
+            if (_nodeItem.EndTime > DateTime.Now)
+            {
+                var subExperimentConfig = _config.SubExperiments
+                    .Where(c => c.SubExperimentName == _nodeItem.SubExperimentName)
+                    .First();
+                var eventHubOrchestration = await EventHubOrchestration.CreateAsync(
+                    ["ExperimentName", "SubExperimentName", "NodeIndex", "ThroughputTarget"],
+                    [
+                        _experimentName,
+                        _nodeItem.SubExperimentName,
+                        _nodeItem.SubExperimentNodeIndex.ToString(),
+                        _nodeItem.ThroughputTarget.ToString()],
+                    "System",
+                    new Uri(_config.TemplateDbUri),
+                    _config.TemplateName,
+                    subExperimentConfig.EventHubConnectionString,
+                    string.Empty,
+                    string.Empty,
+                    _nodeItem.ThroughputTarget,
+                    false,
+                    _nodeItem.EndTime - DateTime.Now,
+                    ct);
 
-                ct.ThrowIfCancellationRequested();
-                if (_nodeItem.EndTime > now)
-                {
-                    var subExperimentConfig = _config.SubExperiments
-                        .Where(c => c.SubExperimentName == _nodeItem.SubExperimentName)
-                        .First();
-                    var eventHubOrchestration = await EventHubOrchestration.CreateAsync(
-                        ["ExperimentName", "SubExperimentName", "NodeIndex", "ThroughputTarget"],
-                        [
-                            _experimentName,
-                            _nodeItem.SubExperimentName,
-                            _nodeItem.SubExperimentNodeIndex.ToString(),
-                            _nodeItem.ThroughputTarget.ToString()],
-                        "System",
-                        new Uri(_config.TemplateDbUri),
-                        _config.TemplateName,
-                        subExperimentConfig.EventHubConnectionString,
-                        string.Empty,
-                        string.Empty,
-                        _nodeItem.ThroughputTarget,
-                        false,
-                        _nodeItem.EndTime - now,
-                        ct);
-
-                    await eventHubOrchestration.ProcessAsync(ct);
-                }
+                await eventHubOrchestration.ProcessAsync(ct);
             }
         }
     }

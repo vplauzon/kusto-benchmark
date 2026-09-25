@@ -6,6 +6,8 @@ namespace EventHubExperimentConsole.Orchestration
     internal class LeaderOrchestration
     {
         private readonly static TimeSpan BEFORE_EXPERIMENT_DURATION = TimeSpan.FromSeconds(30);
+        
+        private readonly static TimeSpan AFTER_EXPERIMENT_DURATION = TimeSpan.FromMinutes(1);
 
         private readonly string _experimentName;
         private readonly ExperimentConfig _config;
@@ -43,11 +45,11 @@ namespace EventHubExperimentConsole.Orchestration
                 .ToArray();
 
             if (experimentStepItems.Length != 0
-                && experimentStepItems[0].EndTime > now + BEFORE_EXPERIMENT_DURATION)
+                && experimentStepItems[0].EndTime > now + AFTER_EXPERIMENT_DURATION)
             {
                 Console.WriteLine($"Await sub experiments completion");
                 await TaskHelper.Until(
-                    experimentStepItems[0].EndTime + BEFORE_EXPERIMENT_DURATION,
+                    experimentStepItems[0].EndTime + AFTER_EXPERIMENT_DURATION,
                     ct);
 
                 return true;
@@ -70,18 +72,18 @@ namespace EventHubExperimentConsole.Orchestration
 
             await Task.WhenAll(subExperimentStepItemTasks);
 
-            var subExperimentStepItemPairs = subExperimentStepItemTasks
+            var subExperimentStepItemMap = subExperimentStepItemTasks
                 .Select(t => t.Result)
                 .Where(r => r != null)
                 .Select(r => r!.Value)
-                .ToArray();
+                .ToDictionary();
 
-            if (subExperimentStepItemPairs.Length != 0)
+            if (subExperimentStepItemMap.Count != 0)
             {
                 var newItem = LogItem.Create(new ExperimentStepItem(
                     startTime,
                     endTime,
-                    subExperimentStepItemPairs.ToDictionary()));
+                    subExperimentStepItemMap));
                 var totalInstanceCount = 1 + newItem.ExperimentStepItem!
                     .SubExperimentStepItemMap
                     .Values
