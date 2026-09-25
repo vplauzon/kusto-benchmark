@@ -59,7 +59,8 @@ For each subsequent step:
 	*	If it **failed**: set `T_fail = AggregateThroughputTarget`; continue.
 4.	Repeat until `T_fail - T_success ≤ ThroughputPrecision`.
 
-At that point, the sub-experiment is complete, with the breaking point narrowed to
+Throughputs are integers, so midpoint division rounds down. `ThroughputPrecision` must be
+positive. At that point, the sub-experiment is complete, with the breaking point narrowed to
 the interval `[T_success, T_fail]`.
 
 ## Node distribution
@@ -70,8 +71,7 @@ The leader converts each `AggregateThroughputTarget` into concrete execution par
 	determine `NodeCount`.
 *	Calculate `NodeThroughputTarget = AggregateThroughputTarget / NodeCount`.
 *	Write these into `SubExperimentStepItem` and append the `ExperimentStepItem` to
-	the log.
+   the log.
 
 Each sub-experiment node receives its assigned `NodeThroughputTarget` and produces
 that throughput to the Event Hub.
-

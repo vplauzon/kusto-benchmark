@@ -22,6 +22,13 @@ Typically a leader will start, register a few sub-experiments (as LogItems) and 
 container app instances.  New app instances will start, read the log, register as a sub-experiment
 node (binding the node with a sub-experiment) and start running the experiment.
 
+##	Coding standard
+
+All lines, either for markdown files or C# files, should be less than 100 characters.
+
+Files should never end with an empty line, e.g. in C#, it should finish with a closing curly
+brace.
+
 ## Log Item (`LogItem`)
 
 Log has two item types, i.e. one and only one is non-`null`:
