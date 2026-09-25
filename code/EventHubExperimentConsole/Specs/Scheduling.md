@@ -7,17 +7,16 @@ breaking point for each sub-experiment. Read the [Overview spec](Overview.md) fi
 
 An experiment is a collection of independent sub-experiments, each targeting a different
 Kusto cluster. The leader runs experiments by scheduling steps. A step is a time-bounded
-work item with a shared duration; all active sub-experiments in the step run concurrently.
+work item; all active sub-experiments in the step run concurrently for the same duration.
 
 Each sub-experiment is configured by `SubExperimentConfig`, which specifies:
 
 *	`ThroughputTargetStart` — the aggregate starting throughput target
 *	`ThroughputPrecision` — the maximum acceptable gap between the highest successful
 	and lowest failed aggregate throughput
-*	`SubExperimentDuration` — how long each step runs for this sub-experiment
 
-The goal is to find the breaking point: the throughput at which the Kusto cluster
-sustains streaming (100% ingestion, no batching) for the full duration.
+Each step has a duration specified by `ExperimentConfig.SubExperimentDuration`,
+applied uniformly to all sub-experiments in that step (to run them concurrently and save time).
 
 ## Step execution and success
 

@@ -25,14 +25,14 @@ namespace EventHubExperimentConsole.Orchestration
 
         public async Task ProcessAsync(CancellationToken ct)
         {
-            var delayStart = _nodeItem.StartTime - DateTime.Now;
+            var delayStart = _nodeItem.StartTime - DateTime.UtcNow;
 
             if (delayStart > TimeSpan.Zero)
             {
                 await Task.Delay(delayStart);
             }
             ct.ThrowIfCancellationRequested();
-            if (_nodeItem.EndTime > DateTime.Now)
+            if (_nodeItem.EndTime > DateTime.UtcNow)
             {
                 var subExperimentConfig = _config.SubExperiments
                     .Where(c => c.SubExperimentName == _nodeItem.SubExperimentName)
@@ -52,7 +52,7 @@ namespace EventHubExperimentConsole.Orchestration
                     string.Empty,
                     _nodeItem.ThroughputTarget,
                     false,
-                    _nodeItem.EndTime - DateTime.Now,
+                    _nodeItem.EndTime - DateTime.UtcNow,
                     ct);
 
                 await eventHubOrchestration.ProcessAsync(ct);

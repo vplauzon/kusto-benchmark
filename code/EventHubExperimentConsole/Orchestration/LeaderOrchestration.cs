@@ -37,7 +37,7 @@ namespace EventHubExperimentConsole.Orchestration
         private async Task<bool> ProcessStepAsync(CancellationToken ct)
         {
             var allItems = await _logBlobClient.LoadAllAsync(ct);
-            var now = DateTime.Now;
+            var now = DateTime.UtcNow;
             var experimentStepItems = allItems.Result
                 .Where(i => i.ExperimentStepItem != null)
                 .Select(i => i.ExperimentStepItem!)
@@ -64,7 +64,7 @@ namespace EventHubExperimentConsole.Orchestration
             ExperimentStepItem[] experimentStepItems,
             CancellationToken ct)
         {
-            var startTime = DateTime.Now.Add(BEFORE_EXPERIMENT_DURATION);
+            var startTime = DateTime.UtcNow.Add(BEFORE_EXPERIMENT_DURATION);
             var endTime = startTime.Add(_config.SubExperimentDuration);
             var subExperimentStepItemTasks = _config.SubExperiments
                 .Select(s => CreateSubExperimentStepAsync(s, experimentStepItems, ct))
