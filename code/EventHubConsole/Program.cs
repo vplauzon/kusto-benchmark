@@ -76,7 +76,7 @@ namespace EventHubConsole
                         options.EventHub,
                         options.TargetThroughput,
                         options.IsOutputCompressed,
-                        null,
+                        DateTime.MaxValue,
                         cancellationTokenSource.Token))
                     {
                         Trace.WriteLine("Processing...");
