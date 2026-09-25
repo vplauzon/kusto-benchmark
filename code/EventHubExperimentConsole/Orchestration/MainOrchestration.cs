@@ -10,18 +10,21 @@ namespace EventHubExperimentConsole.Orchestration
         private readonly ExperimentConfig _config;
         private readonly LogBlobClient<LogItem> _logBlobClient;
         private readonly InstanceManager _instanceManager;
+        private readonly Guid _nodeId;
 
         #region Constructors
         private MainOrchestration(
             string experimentName,
             ExperimentConfig config,
             LogBlobClient<LogItem> logBlobClient,
-            InstanceManager instanceManager)
+            InstanceManager instanceManager,
+            Guid nodeId)
         {
             _experimentName = experimentName;
             _config = config;
             _logBlobClient = logBlobClient;
             _instanceManager = instanceManager;
+            _nodeId = nodeId;
         }
 
         public static async Task<MainOrchestration> CreateAsync(
@@ -57,8 +60,9 @@ namespace EventHubExperimentConsole.Orchestration
             var logBlobClient =
                 await LogBlobClient<LogItem>.CreateAsync(logUri, CompactLogItems, credential, ct);
             var instanceManager = new InstanceManager(config.ContainerAppId, credential);
+            var nodeId = Guid.NewGuid();
 
-            return new MainOrchestration(folderName, config, logBlobClient, instanceManager);
+            return new MainOrchestration(folderName, config, logBlobClient, instanceManager, nodeId);
         }
         #endregion
 
@@ -73,14 +77,12 @@ namespace EventHubExperimentConsole.Orchestration
         {
             while (!ct.IsCancellationRequested)
             {
-                var nodeId = Guid.NewGuid();
-
                 Console.WriteLine("Experiment configuration:");
                 _config.DisplayConfig();
                 Console.WriteLine();
 
                 await using (var registration =
-                    await RegistrationManager.RegisterAsync(_logBlobClient, nodeId, ct))
+                    await RegistrationManager.RegisterAsync(_logBlobClient, _nodeId, ct))
                 {
                     if (registration.NodeItem == null)
                     {
