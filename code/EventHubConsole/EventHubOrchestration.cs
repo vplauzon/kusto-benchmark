@@ -54,7 +54,7 @@ namespace EventHubConsole
             _generator = generator;
             _eventHubProducerClient = eventHubProducerClient;
             _targetBytePerMinute = targetBytePerMinute;
-            _targetBytePerBatch = Math.Min(1, (int)targetBytePerBatch);
+            _targetBytePerBatch = Math.Max(1, (int)targetBytePerBatch);
             _isOutputCompressed = isOutputCompressed;
             _endTime = endTime;
             _streamQueue = new(Enumerable
