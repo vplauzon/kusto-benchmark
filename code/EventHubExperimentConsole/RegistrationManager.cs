@@ -53,7 +53,8 @@ namespace EventHubExperimentConsole
                     {
                         Console.WriteLine(
                             $"Node ({nodeId}) registration with " +
-                            $"{nodeItem.SubExperimentName}:{nodeItem.SubExperimentNodeIndex}");
+                            $"{nodeItem.SubExperimentName}:{nodeItem.SubExperimentNodeIndex}" +
+                            $"({nodeItem.ThroughputTarget})");
                     }
                     else
                     {
