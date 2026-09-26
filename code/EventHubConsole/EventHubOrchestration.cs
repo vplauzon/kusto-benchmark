@@ -48,6 +48,7 @@ namespace EventHubConsole
             var targetBytePerMinute = targetMbPerMinute * 1000000;
             var targetBytePerSecond = targetBytePerMinute / 60;
             var targetBytePerBatch = targetBytePerSecond / 10;
+
             _dimensionNames = dimensionNames.ToImmutableArray();
             _dimensionValues = dimensionValues.ToImmutableArray();
             _generator = generator;
@@ -59,6 +60,8 @@ namespace EventHubConsole
             _streamQueue = new(Enumerable
                 .Range(0, PARALLEL_PARTITION)
                 .Select(i => new MemoryStream()));
+            Console.WriteLine($"Target byte per minute:  {_targetBytePerMinute}");
+            Console.WriteLine($"Target byte per batch:  {_targetBytePerBatch}");
         }
 
         public static async Task<EventHubOrchestration> CreateAsync(
@@ -133,6 +136,7 @@ namespace EventHubConsole
                 }
                 else
                 {
+                    Console.WriteLine("Stream queue throttling");
                     await Task.Delay(PAUSE_DURATION, ct);
                 }
             }
