@@ -5,6 +5,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.IO.Compression;
 using System.Text;
 
@@ -125,7 +126,7 @@ namespace EventHubConsole
                 var deltaVolume = expectedVolume - volume;
                 var deltaTime = DateTime.Now - lastBatch;
 
-                if (deltaVolume > _targetBytePerBatch && _streamQueue.TryDequeue(out var stream))
+                if (deltaVolume > _targetBytePerBatch && TryDequeueStream(out var stream))
                 {
                     var sendingOutput =
                         await SendDataAsync(deltaVolume, stream, metricWriter, ct);
@@ -136,9 +137,22 @@ namespace EventHubConsole
                 }
                 else
                 {
-                    Console.WriteLine("Stream queue throttling");
                     await Task.Delay(PAUSE_DURATION, ct);
                 }
+            }
+        }
+
+        private bool TryDequeueStream([NotNullWhen(true)] out MemoryStream? stream)
+        {
+            if (_streamQueue.TryDequeue(out stream))
+            {
+                return true;
+            }
+            else
+            {
+                Console.WriteLine("Stream queue throttling");
+
+                return false;
             }
         }
 
