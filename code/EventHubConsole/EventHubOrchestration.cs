@@ -47,7 +47,7 @@ namespace EventHubConsole
         {
             var targetBytePerMinute = targetMbPerMinute * 1000000;
             var targetBytePerSecond = targetBytePerMinute / 60;
-            var targetBytePerBatch = targetBytePerSecond / 10;
+            var targetBytePerBatch = targetBytePerSecond / 2;
 
             _dimensionNames = dimensionNames.ToImmutableArray();
             _dimensionValues = dimensionValues.ToImmutableArray();
