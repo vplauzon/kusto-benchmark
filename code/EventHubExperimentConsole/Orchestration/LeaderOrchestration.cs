@@ -87,10 +87,13 @@ namespace EventHubExperimentConsole.Orchestration
                 var totalInstanceCount = 1 + subExperimentStepItemMap.Values.Sum(s => s.NodeCount);
 
                 Console.WriteLine($"Starting experiment step with {totalInstanceCount} nodes");
+                Console.Out.Flush();
                 TraceSubExperimentStepItemMap(subExperimentStepItemMap);
+                Console.Out.Flush();
                 await _instanceManager.SetInstanceCountAsync(totalInstanceCount, ct);
                 await _logBlobClient.AppendAsync(logItem, null, ct);
                 Console.WriteLine($"Experiment step created");
+                Console.Out.Flush();
 
                 return true;
             }
