@@ -301,7 +301,8 @@ namespace EventHubExperimentConsole
                     {
                         Console.WriteLine(
                             $"Node ({_nodeId}) renewed registration with " +
-                            $"{NodeItem.SubExperimentName}:{NodeItem.SubExperimentNodeIndex}");
+                            $"{NodeItem.SubExperimentName}:{NodeItem.SubExperimentNodeIndex}" +
+                            $"({NodeItem.ThroughputTarget})");
                     }
                     else
                     {
