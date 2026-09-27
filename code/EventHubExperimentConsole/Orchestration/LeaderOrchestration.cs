@@ -1,5 +1,7 @@
 ﻿using EventHubExperimentConsole.Configuration;
 using EventHubExperimentConsole.Items;
+using SharpYaml;
+using System.Text.Json;
 
 namespace EventHubExperimentConsole.Orchestration
 {
@@ -78,7 +80,7 @@ namespace EventHubExperimentConsole.Orchestration
                 .Select(p => p!.Value)
                 .ToDictionary();
 
-            TraceSubExperimentStepItemMap(subExperimentStepItemMap)
+            TraceSubExperimentStepItemMap(subExperimentStepItemMap);
             if (subExperimentStepItemMap.Count > 0)
             {
                 var logItem = LogItem.Create(
@@ -101,7 +103,12 @@ namespace EventHubExperimentConsole.Orchestration
         private void TraceSubExperimentStepItemMap(
             IDictionary<string, SubExperimentStepItem> subExperimentStepItemMap)
         {
-            throw new NotImplementedException();
+            var options = new YamlSerializerOptions
+            {
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+            };
+
+            Console.WriteLine(YamlSerializer.Serialize(subExperimentStepItemMap, options));
         }
 
         private async Task<KeyValuePair<string, SubExperimentStepItem>?> CreateSubExperimentStepItemPairAsync(
