@@ -221,7 +221,7 @@ namespace EventHubConsole
                 }
                 else
                 {
-                    Console.WriteLine($"Can't add event #{rowCount} to batch");
+                    //Console.WriteLine($"Can't add event #{rowCount} to batch");
                 }
             }
 
