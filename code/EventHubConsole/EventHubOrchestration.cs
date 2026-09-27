@@ -48,7 +48,7 @@ namespace EventHubConsole
         {
             var targetBytePerMinute = targetMbPerMinute * 1000000;
             var targetBytePerSecond = targetBytePerMinute / 60;
-            var targetBytePerBatch = targetBytePerSecond / 2;
+            var targetBytePerBatch = targetBytePerSecond / 5;
 
             _dimensionNames = dimensionNames.ToImmutableArray();
             _dimensionValues = dimensionValues.ToImmutableArray();
@@ -111,7 +111,7 @@ namespace EventHubConsole
             await using var metricWriter = new MetricWriter(
                 _dimensionNames,
                 [BATCH_COUNT, RECORD_COUNT, UNCOMPRESSED_SIZE, COMPRESSED_SIZE],
-                TimeSpan.FromSeconds(15));
+                TimeSpan.FromMinutes(1));
             var watch = new Stopwatch();
             var volume = (long)0;
             var lastBatch = DateTime.MinValue;
