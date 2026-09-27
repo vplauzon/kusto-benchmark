@@ -107,8 +107,10 @@ namespace EventHubExperimentConsole.Orchestration
             {
                 PropertyNamingPolicy = JsonNamingPolicy.CamelCase
             };
-
-            Console.WriteLine(YamlSerializer.Serialize(subExperimentStepItemMap, options));
+            var wrapper = new { subExperiments = subExperimentStepItemMap };
+            
+            Console.WriteLine($"Sub Experiment Steps:  " +
+                $"{YamlSerializer.Serialize(wrapper, options)}");
         }
 
         private async Task<KeyValuePair<string, SubExperimentStepItem>?> CreateSubExperimentStepItemPairAsync(
