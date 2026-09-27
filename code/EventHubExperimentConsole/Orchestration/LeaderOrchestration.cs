@@ -127,7 +127,7 @@ namespace EventHubExperimentConsole.Orchestration
             {
                 var historicalThroughputTargets = experimentStepItems
                     .Select(s => s.SubExperimentStepItemMap[subExperimentConfig.SubExperimentName])
-                    .Select(i => i.ThroughputTarget)
+                    .Select(i => i.AggregateThroughputTarget)
                     .Reverse();
                 var hasLastSubExperimentSucceeded = true;
                 var nextThroughputTarget = new ThroughputPlanner().ComputeNextThroughput(
@@ -152,19 +152,25 @@ namespace EventHubExperimentConsole.Orchestration
             }
         }
 
-        private SubExperimentStepItem CreateSubExperimentStepItem(int aggregateThroughputTarget)
+        private SubExperimentStepItem CreateSubExperimentStepItem(double aggregateThroughputTarget)
         {
-            if (_config.MaxThroughputPerNode <= 0)
+            if (!double.IsFinite(aggregateThroughputTarget) || aggregateThroughputTarget <= 0)
+            {
+                throw new InvalidOperationException(
+                    "Aggregate throughput target must be finite and greater than zero.");
+            }
+
+            if (!double.IsFinite(_config.MaxThroughputPerNode)
+                || _config.MaxThroughputPerNode <= 0)
             {
                 throw new InvalidOperationException(
                     "Max throughput per node must be greater than zero.");
             }
 
-            var nodeCount = (int)(((long)aggregateThroughputTarget - 1)
-                / _config.MaxThroughputPerNode + 1);
-            var nodeThroughputTarget = aggregateThroughputTarget / nodeCount;
+            var nodeCount = checked((int)Math.Ceiling(
+                aggregateThroughputTarget / _config.MaxThroughputPerNode));
 
-            return new SubExperimentStepItem(nodeCount, nodeThroughputTarget);
+            return new SubExperimentStepItem(aggregateThroughputTarget, nodeCount);
         }
     }
 }

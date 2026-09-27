@@ -10,9 +10,9 @@ namespace EventHubExperimentConsole.Configuration
         string TemplateName,
         string ContainerAppId,
         TimeSpan SubExperimentDuration,
-        long MaxThroughputPerNode,
+        double MaxThroughputPerNode,
         int MaxSubExperimentCount,
-        int ThroughputPrecision,
+        double ThroughputPrecision,
         IReadOnlyList<SubExperimentConfig> SubExperiments)
     {
         private static readonly YamlSerializerOptions Options = new()

@@ -29,8 +29,8 @@ namespace EventHubConsole
         private readonly IImmutableList<string> _dimensionValues;
         private readonly ExpressionGenerator _generator;
         private readonly EventHubProducerClient _eventHubProducerClient;
-        private readonly int _targetBytePerMinute;
-        private readonly int _targetBytePerBatch;
+        private readonly double _targetBytePerMinute;
+        private readonly double _targetBytePerBatch;
         private readonly bool _isOutputCompressed;
         private readonly DateTime _endTime;
         private readonly ConcurrentQueue<MemoryStream> _streamQueue;
@@ -42,20 +42,20 @@ namespace EventHubConsole
             IEnumerable<string> dimensionValues,
             ExpressionGenerator generator,
             EventHubProducerClient eventHubProducerClient,
-            int targetMbPerMinute,
+            double targetMbPerMinute,
             bool isOutputCompressed,
             DateTime endTime)
         {
-            var targetBytePerMinute = targetMbPerMinute * 1000000;
-            var targetBytePerSecond = targetBytePerMinute / 60;
-            var targetBytePerBatch = targetBytePerSecond / 5;
+            var targetBytePerMinute = targetMbPerMinute * 1000000d;
+            var targetBytePerSecond = targetBytePerMinute / 60d;
+            var targetBytePerBatch = targetBytePerSecond / 5d;
 
             _dimensionNames = dimensionNames.ToImmutableArray();
             _dimensionValues = dimensionValues.ToImmutableArray();
             _generator = generator;
             _eventHubProducerClient = eventHubProducerClient;
             _targetBytePerMinute = targetBytePerMinute;
-            _targetBytePerBatch = Math.Max(1, (int)targetBytePerBatch);
+            _targetBytePerBatch = Math.Max(1d, targetBytePerBatch);
             _isOutputCompressed = isOutputCompressed;
             _endTime = endTime;
             _streamQueue = new(Enumerable
@@ -74,7 +74,7 @@ namespace EventHubConsole
             string eventHubConnectionString,
             string eventHubFqdn,
             string eventHubName,
-            int targetMbPerMinute,
+            double targetMbPerMinute,
             bool isOutputCompressed,
             DateTime endTime,
             CancellationToken ct)

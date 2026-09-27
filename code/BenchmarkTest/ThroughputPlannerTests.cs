@@ -38,16 +38,16 @@ public class ThroughputPlannerTests
     }
 
     [Fact]
-    public void RoundsMidpointDownForIntegerThroughput()
+    public void ComputesFractionalMidpoint()
     {
-        AssertNextThroughput(false, [2, 7], 2, 4);
+        AssertNextThroughput(false, [2, 7], 2, 4.5);
     }
 
     private void AssertNextThroughput(
         bool hasLastSucceeded,
-        IEnumerable<int> historicalThroughputs,
-        int throughputPrecision,
-        int? expectedThroughput)
+        IEnumerable<double> historicalThroughputs,
+        double throughputPrecision,
+        double? expectedThroughput)
     {
         var actualThroughput = _planner.ComputeNextThroughput(
             hasLastSucceeded,

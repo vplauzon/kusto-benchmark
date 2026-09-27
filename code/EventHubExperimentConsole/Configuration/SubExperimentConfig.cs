@@ -5,5 +5,5 @@ namespace EventHubExperimentConsole.Configuration
         string IngestionDbUri,
         string IngestionTable,
         string EventHubConnectionString,
-        int ThroughputTargetStart);
+        double ThroughputTargetStart);
 }

@@ -12,8 +12,9 @@ work item; all active sub-experiments in the step run concurrently for the same 
 Each sub-experiment is configured by `SubExperimentConfig`, which specifies:
 
 *	`ThroughputTargetStart` — the aggregate starting throughput target
-*	`ThroughputPrecision` — the maximum acceptable gap between the highest successful
-	and lowest failed aggregate throughput
+
+`ExperimentConfig.ThroughputPrecision` specifies the maximum acceptable gap between the
+highest successful and lowest failed aggregate throughput.
 
 Each step has a duration specified by `ExperimentConfig.SubExperimentDuration`,
 applied uniformly to all sub-experiments in that step (to run them concurrently and save time).
@@ -59,16 +60,16 @@ For each subsequent step:
 	*	If it **failed**: set `T_fail = AggregateThroughputTarget`; continue.
 4.	Repeat until `T_fail - T_success ≤ ThroughputPrecision`.
 
-Throughputs are integers, so midpoint division rounds down. `ThroughputPrecision` must be
-positive. At that point, the sub-experiment is complete, with the breaking point narrowed to
-the interval `[T_success, T_fail]`.
+Throughput targets may be fractional, so midpoint division is not rounded. `ThroughputPrecision`
+must be positive. At that point, the sub-experiment is complete, with the breaking point
+narrowed to the interval `[T_success, T_fail]`.
 
 ## Node distribution
 
 The leader converts each `AggregateThroughputTarget` into concrete execution parameters:
 
-*	Divide `AggregateThroughputTarget` by a constant maximum throughput per node to
-	determine `NodeCount`.
+*	Use `ExperimentConfig.MaxThroughputPerNode` as the maximum throughput per node.
+*	Calculate `NodeCount = ceiling(AggregateThroughputTarget / MaxThroughputPerNode)`.
 *	Calculate `NodeThroughputTarget = AggregateThroughputTarget / NodeCount`.
 *	Write these into `SubExperimentStepItem` and append the `ExperimentStepItem` to
    the log.

@@ -40,7 +40,7 @@ namespace EventHubConsole
             "throughput-target",
             Required = false,
             HelpText = "Set the throughput target, in MBs/minute")]
-        public int TargetThroughput { get; set; } = 10;
+        public double TargetThroughput { get; set; } = 10;
 
         [Option(
             'c',

@@ -22,18 +22,18 @@ namespace EventHubExperimentConsole.Orchestration
         /// failure.</param>
         /// <returns>Next throughput to try, or <c>null</c> if the process should stop
         /// here.</returns>
-        public int? ComputeNextThroughput(
+        public double? ComputeNextThroughput(
             bool hasLastSucceeded,
-            IEnumerable<int> historicalThroughputs,
-            int throughputPrecision)
+            IEnumerable<double> historicalThroughputs,
+            double throughputPrecision)
         {
             ArgumentNullException.ThrowIfNull(historicalThroughputs);
 
-            if (throughputPrecision <= 0)
+            if (!double.IsFinite(throughputPrecision) || throughputPrecision <= 0)
             {
                 throw new ArgumentOutOfRangeException(
                     nameof(throughputPrecision),
-                    "Throughput precision must be greater than zero.");
+                    "Throughput precision must be finite and greater than zero.");
             }
 
             var throughputs = historicalThroughputs.ToArray();
@@ -44,11 +44,11 @@ namespace EventHubExperimentConsole.Orchestration
                     nameof(historicalThroughputs));
             }
 
-            if (throughputs.Any(throughput => throughput <= 0))
+            if (throughputs.Any(throughput => !double.IsFinite(throughput) || throughput <= 0))
             {
                 throw new ArgumentOutOfRangeException(
                     nameof(historicalThroughputs),
-                    "Historical throughputs must be greater than zero.");
+                    "Historical throughputs must be finite and greater than zero.");
             }
 
             var lastThroughput = throughputs[^1];
@@ -62,9 +62,9 @@ namespace EventHubExperimentConsole.Orchestration
 
                 if (lowestFailedThroughput == 0)
                 {
-                    var doubledThroughput = (long)lastThroughput * 2;
-                    return doubledThroughput <= int.MaxValue
-                        ? (int)doubledThroughput
+                    var doubledThroughput = lastThroughput * 2;
+                    return double.IsFinite(doubledThroughput)
+                        ? doubledThroughput
                         : null;
                 }
 
@@ -87,19 +87,19 @@ namespace EventHubExperimentConsole.Orchestration
                     throughputPrecision);
         }
 
-        private static int? GetNextMidpoint(
-            int successfulThroughput,
-            int failedThroughput,
-            int throughputPrecision)
+        private static double? GetNextMidpoint(
+            double successfulThroughput,
+            double failedThroughput,
+            double throughputPrecision)
         {
-            var gap = (long)failedThroughput - successfulThroughput;
+            var gap = failedThroughput - successfulThroughput;
 
             if (gap <= throughputPrecision)
             {
                 return null;
             }
 
-            return (int)(((long)successfulThroughput + failedThroughput) / 2);
+            return (successfulThroughput + failedThroughput) / 2;
         }
     }
 }

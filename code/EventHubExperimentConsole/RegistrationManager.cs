@@ -54,7 +54,7 @@ namespace EventHubExperimentConsole
                         Console.WriteLine(
                             $"Node ({nodeId}) registration with " +
                             $"{nodeItem.SubExperimentName}:{nodeItem.SubExperimentNodeIndex}" +
-                            $"({nodeItem.ThroughputTarget})");
+                            $"({nodeItem.NodeThroughputTarget})");
                     }
                     else
                     {
@@ -210,7 +210,7 @@ namespace EventHubExperimentConsole
                                     index,
                                     experimentStepItem.StartTime,
                                     experimentStepItem.EndTime,
-                                    subExperimentStepItem.ThroughputTarget),
+                                    subExperimentStepItem.NodeThroughputTarget),
                                 logTag,
                                 ct);
                             return (result.Success, result.NodeItem, logTag);
@@ -227,7 +227,7 @@ namespace EventHubExperimentConsole
                                 0,
                                 experimentStepItem.StartTime,
                                 experimentStepItem.EndTime,
-                                subExperimentStepItem.ThroughputTarget),
+                                subExperimentStepItem.NodeThroughputTarget),
                             logTag,
                             ct);
                         return (result.Success, result.NodeItem, logTag);
@@ -302,7 +302,7 @@ namespace EventHubExperimentConsole
                         Console.WriteLine(
                             $"Node ({_nodeId}) renewed registration with " +
                             $"{NodeItem.SubExperimentName}:{NodeItem.SubExperimentNodeIndex}" +
-                            $"({NodeItem.ThroughputTarget})");
+                            $"({NodeItem.NodeThroughputTarget})");
                     }
                     else
                     {
