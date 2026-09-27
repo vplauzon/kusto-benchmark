@@ -78,6 +78,7 @@ namespace EventHubExperimentConsole.Orchestration
                 .Select(p => p!.Value)
                 .ToDictionary();
 
+            TraceSubExperimentStepItemMap(subExperimentStepItemMap)
             if (subExperimentStepItemMap.Count > 0)
             {
                 var logItem = LogItem.Create(
@@ -97,6 +98,12 @@ namespace EventHubExperimentConsole.Orchestration
             }
         }
 
+        private void TraceSubExperimentStepItemMap(
+            IDictionary<string, SubExperimentStepItem> subExperimentStepItemMap)
+        {
+            throw new NotImplementedException();
+        }
+
         private async Task<KeyValuePair<string, SubExperimentStepItem>?> CreateSubExperimentStepItemPairAsync(
             SubExperimentConfig subExperimentConfig,
             ExperimentStepItem[] experimentStepItems,
@@ -106,15 +113,11 @@ namespace EventHubExperimentConsole.Orchestration
             {
                 return KeyValuePair.Create(
                     subExperimentConfig.SubExperimentName,
-                    new SubExperimentStepItem(1, subExperimentConfig.ThroughputTargetStart));
+                    CreateSubExperimentStepItem(subExperimentConfig.ThroughputTargetStart));
             }
-            else if (experimentStepItems[0].SubExperimentStepItemMap.TryGetValue(
-                subExperimentConfig.SubExperimentName,
-                out var lastSubExperimentItem))
+            else if (experimentStepItems[0].SubExperimentStepItemMap.ContainsKey(
+                subExperimentConfig.SubExperimentName))
             {
-                await Task.CompletedTask;
-
-                var lastThroughputTarget = lastSubExperimentItem.ThroughputTarget;
                 var historicalThroughputTargets = experimentStepItems
                     .Select(s => s.SubExperimentStepItemMap[subExperimentConfig.SubExperimentName])
                     .Select(i => i.ThroughputTarget)
@@ -129,7 +132,7 @@ namespace EventHubExperimentConsole.Orchestration
                 {
                     return KeyValuePair.Create(
                         subExperimentConfig.SubExperimentName,
-                        new SubExperimentStepItem(1, subExperimentConfig.ThroughputTargetStart));
+                        CreateSubExperimentStepItem(nextThroughputTarget.Value));
                 }
                 else
                 {
@@ -140,6 +143,21 @@ namespace EventHubExperimentConsole.Orchestration
             {
                 return null;
             }
+        }
+
+        private SubExperimentStepItem CreateSubExperimentStepItem(int aggregateThroughputTarget)
+        {
+            if (_config.MaxThroughputPerNode <= 0)
+            {
+                throw new InvalidOperationException(
+                    "Max throughput per node must be greater than zero.");
+            }
+
+            var nodeCount = (int)(((long)aggregateThroughputTarget - 1)
+                / _config.MaxThroughputPerNode + 1);
+            var nodeThroughputTarget = aggregateThroughputTarget / nodeCount;
+
+            return new SubExperimentStepItem(nodeCount, nodeThroughputTarget);
         }
     }
 }
