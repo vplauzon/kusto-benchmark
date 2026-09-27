@@ -9,8 +9,9 @@ namespace EventHubExperimentConsole.Configuration
         string TemplateDbUri,
         string TemplateName,
         string ContainerAppId,
-        EventHubConfig EventHubConfiguration,
         TimeSpan SubExperimentDuration,
+        long MaxThroughputPerNode,
+        int MaxSubExperimentCount,
         int ThroughputPrecision,
         IReadOnlyList<SubExperimentConfig> SubExperiments)
     {
