@@ -101,7 +101,7 @@ namespace EventHubExperimentConsole.Orchestration
         }
 
         private void TraceSubExperimentStepItemMap(
-            Dictionary<string, SubExperimentStepItem> subExperimentStepItemMap)
+            IDictionary<string, SubExperimentStepItem> subExperimentStepItemMap)
         {
             var options = new YamlSerializerOptions
             {
