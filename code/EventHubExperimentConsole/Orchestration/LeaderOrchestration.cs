@@ -136,7 +136,7 @@ namespace EventHubExperimentConsole.Orchestration
                     ct);
 
                 Console.WriteLine(
-                    $"#success# SubExperiment='{subName}', " +
+                    $"#success#  Experiment='{_experimentName}', SubExperiment='{subName}', " +
                     $"Start={lastStepItem.StartTime}, " +
                     $"End={lastStepItem.EndTime}, BatchCount={batchCount}");
 
