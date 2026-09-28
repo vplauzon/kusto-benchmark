@@ -82,7 +82,7 @@ namespace EventHubExperimentConsole.Orchestration
             await Task.WhenAll(subExperimentStepItemPairTasks);
 
             var startTime = DateTime.UtcNow.Add(BEFORE_EXPERIMENT_DURATION);
-            var endTime = startTime.Add(_config.SubExperimentDuration);
+            var endTime = startTime.Add(_config.Runtime.SubExperimentDuration);
             var subExperimentStepItemMap = subExperimentStepItemPairTasks
                 .Select(t => t.Result)
                 .Where(p => p != null)
@@ -108,10 +108,11 @@ namespace EventHubExperimentConsole.Orchestration
             }
         }
 
-        private async Task<KeyValuePair<string, SubExperimentStepItem>?> CreateSubExperimentStepItemPairAsync(
-            SubExperimentConfig subExperimentConfig,
-            ExperimentStepItem[] experimentStepItems,
-            CancellationToken ct)
+        private async Task<KeyValuePair<string, SubExperimentStepItem>?>
+            CreateSubExperimentStepItemPairAsync(
+                SubExperimentConfig subExperimentConfig,
+                ExperimentStepItem[] experimentStepItems,
+                CancellationToken ct)
         {
             var subName = subExperimentConfig.SubExperimentName;
 
@@ -134,14 +135,16 @@ namespace EventHubExperimentConsole.Orchestration
                     lastStepItem.EndTime,
                     ct);
 
-                Console.WriteLine($"#success# SubExperiment='{subName}', " +
-                    $"Start={lastStepItem.StartTime}, End={lastStepItem.EndTime}, BatchCount={batchCount}");
+                Console.WriteLine(
+                    $"#success# SubExperiment='{subName}', " +
+                    $"Start={lastStepItem.StartTime}, " +
+                    $"End={lastStepItem.EndTime}, BatchCount={batchCount}");
 
                 var hasLastSubExperimentSucceeded = (batchCount == 0);
                 var nextThroughputTarget = new ThroughputPlanner().ComputeNextThroughput(
                     hasLastSubExperimentSucceeded,
                     historicalThroughputTargets,
-                    _config.ThroughputPrecision);
+                    _config.Runtime.ThroughputPrecision);
 
                 if (nextThroughputTarget != null)
                 {
@@ -168,15 +171,15 @@ namespace EventHubExperimentConsole.Orchestration
                     "Aggregate throughput target must be finite and greater than zero.");
             }
 
-            if (!double.IsFinite(_config.MaxThroughputPerNode)
-                || _config.MaxThroughputPerNode <= 0)
+            if (!double.IsFinite(_config.Runtime.MaxThroughputPerNode)
+                || _config.Runtime.MaxThroughputPerNode <= 0)
             {
                 throw new InvalidOperationException(
                     "Max throughput per node must be greater than zero.");
             }
 
             var nodeCount = checked((int)Math.Ceiling(
-                aggregateThroughputTarget / _config.MaxThroughputPerNode));
+                aggregateThroughputTarget / _config.Runtime.MaxThroughputPerNode));
 
             return new SubExperimentStepItem(aggregateThroughputTarget, nodeCount);
         }
