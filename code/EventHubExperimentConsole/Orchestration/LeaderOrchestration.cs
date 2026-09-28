@@ -43,6 +43,10 @@ namespace EventHubExperimentConsole.Orchestration
             {
                 ct.ThrowIfCancellationRequested();
             }
+
+            Console.WriteLine("Experiment complete; scaling down to one instance and stopping the container app.");
+            await _instanceManager.SetInstanceCountAsync(1, ct);
+            await _instanceManager.StopAsync(ct);
         }
 
         private async Task<bool> ProcessStepAsync(CancellationToken ct)

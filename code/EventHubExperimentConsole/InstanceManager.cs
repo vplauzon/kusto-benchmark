@@ -47,5 +47,14 @@ namespace EventHubExperimentConsole
 
             await _containerApp.UpdateAsync(WaitUntil.Completed, data, ct);
         }
+
+        /// <summary>
+        /// Stops the container app.
+        /// </summary>
+        /// <param name="ct">Cancellation token.</param>
+        public async Task StopAsync(CancellationToken ct)
+        {
+            await _containerApp.StopAsync(WaitUntil.Completed, ct);
+        }
     }
 }
