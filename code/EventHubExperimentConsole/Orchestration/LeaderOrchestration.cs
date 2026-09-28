@@ -113,20 +113,31 @@ namespace EventHubExperimentConsole.Orchestration
             ExperimentStepItem[] experimentStepItems,
             CancellationToken ct)
         {
+            var subName = subExperimentConfig.SubExperimentName;
+
             if (experimentStepItems.Length == 0)
             {
                 return KeyValuePair.Create(
-                    subExperimentConfig.SubExperimentName,
+                    subName,
                     CreateSubExperimentStepItem(subExperimentConfig.ThroughputTargetStart));
             }
             else if (experimentStepItems[0].SubExperimentStepItemMap.ContainsKey(
-                subExperimentConfig.SubExperimentName))
+                subName))
             {
                 var historicalThroughputTargets = experimentStepItems
-                    .Select(s => s.SubExperimentStepItemMap[subExperimentConfig.SubExperimentName])
+                    .Select(s => s.SubExperimentStepItemMap[subName])
                     .Select(i => i.AggregateThroughputTarget)
                     .Reverse();
-                var hasLastSubExperimentSucceeded = true;
+                var lastStepItem = experimentStepItems[0];
+                var batchCount = await _kustoCommandClients[subName].FetchBatchCountAsync(
+                    lastStepItem.StartTime,
+                    lastStepItem.EndTime,
+                    ct);
+
+                Console.WriteLine($"#success# SubExperiment='{subName}', " +
+                    $"Start={lastStepItem.StartTime}, End={lastStepItem.EndTime}, BatchCount={batchCount}");
+
+                var hasLastSubExperimentSucceeded = (batchCount == 0);
                 var nextThroughputTarget = new ThroughputPlanner().ComputeNextThroughput(
                     hasLastSubExperimentSucceeded,
                     historicalThroughputTargets,
@@ -135,7 +146,7 @@ namespace EventHubExperimentConsole.Orchestration
                 if (nextThroughputTarget != null)
                 {
                     return KeyValuePair.Create(
-                        subExperimentConfig.SubExperimentName,
+                        subName,
                         CreateSubExperimentStepItem(nextThroughputTarget.Value));
                 }
                 else

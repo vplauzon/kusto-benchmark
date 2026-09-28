@@ -31,7 +31,7 @@ namespace EventHubExperimentConsole
         }
         #endregion
 
-        public async Task<long> FetchBatchCountAsync(DateTime start, DateTime end)
+        public async Task<long> FetchBatchCountAsync(DateTime start, DateTime end, CancellationToken ct)
         {
             var startText = start.ToUtc().ToString();
             var endText = end.ToUtc().ToString();
