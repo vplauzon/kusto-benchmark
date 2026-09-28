@@ -1,4 +1,4 @@
-﻿using SharpYaml.Serialization;
+﻿using System.Text.Json.Serialization;
 
 namespace EventHubExperimentConsole.Items
 {
@@ -6,7 +6,7 @@ namespace EventHubExperimentConsole.Items
         double AggregateThroughputTarget,
         int NodeCount)
     {
-        [YamlIgnore]
+        [JsonIgnore]
         public double NodeThroughputTarget => AggregateThroughputTarget / NodeCount;
     }
 }
