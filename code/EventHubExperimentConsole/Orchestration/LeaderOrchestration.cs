@@ -1,4 +1,5 @@
-﻿using EventHubExperimentConsole.Configuration;
+﻿using Azure.Core;
+using EventHubExperimentConsole.Configuration;
 using EventHubExperimentConsole.Items;
 using System.Text.Json;
 
@@ -14,17 +15,26 @@ namespace EventHubExperimentConsole.Orchestration
         private readonly ExperimentConfig _config;
         private readonly LogBlobClient<LogItem> _logBlobClient;
         private readonly InstanceManager _instanceManager;
+        private readonly IReadOnlyDictionary<string, KustoCommandClient> _kustoCommandClients;
 
         public LeaderOrchestration(
             string experimentName,
             ExperimentConfig config,
             LogBlobClient<LogItem> logBlobClient,
-            InstanceManager instanceManager)
+            InstanceManager instanceManager,
+            TokenCredential credential)
         {
             _experimentName = experimentName;
             _config = config;
             _logBlobClient = logBlobClient;
             _instanceManager = instanceManager;
+            _kustoCommandClients = config.SubExperiments
+                .ToDictionary(
+                    subExperiment => subExperiment.SubExperimentName,
+                    subExperiment => new KustoCommandClient(
+                        new Uri(subExperiment.IngestionDbUri),
+                        subExperiment.IngestionTable,
+                        credential));
         }
 
         public async Task ProcessAsync(CancellationToken ct)

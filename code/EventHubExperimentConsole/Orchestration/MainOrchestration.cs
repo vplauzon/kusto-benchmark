@@ -1,4 +1,5 @@
-﻿using BenchmarkLib;
+﻿using Azure.Core;
+using BenchmarkLib;
 using EventHubExperimentConsole.Configuration;
 using EventHubExperimentConsole.Items;
 
@@ -10,20 +11,23 @@ namespace EventHubExperimentConsole.Orchestration
         private readonly ExperimentConfig _config;
         private readonly LogBlobClient<LogItem> _logBlobClient;
         private readonly InstanceManager _instanceManager;
+        private readonly TokenCredential _credential;
         private readonly Guid _nodeId;
 
         #region Constructors
         private MainOrchestration(
-            string experimentName,
-            ExperimentConfig config,
-            LogBlobClient<LogItem> logBlobClient,
-            InstanceManager instanceManager,
-            Guid nodeId)
+             string experimentName,
+             ExperimentConfig config,
+             LogBlobClient<LogItem> logBlobClient,
+             InstanceManager instanceManager,
+             TokenCredential credential,
+             Guid nodeId)
         {
             _experimentName = experimentName;
             _config = config;
             _logBlobClient = logBlobClient;
             _instanceManager = instanceManager;
+            _credential = credential;
             _nodeId = nodeId;
         }
 
@@ -62,7 +66,13 @@ namespace EventHubExperimentConsole.Orchestration
             var instanceManager = new InstanceManager(config.ContainerAppId, credential);
             var nodeId = Guid.NewGuid();
 
-            return new MainOrchestration(folderName, config, logBlobClient, instanceManager, nodeId);
+            return new MainOrchestration(
+                folderName,
+                config,
+                logBlobClient,
+                instanceManager,
+                credential,
+                nodeId);
         }
         #endregion
 
@@ -90,7 +100,8 @@ namespace EventHubExperimentConsole.Orchestration
                             _experimentName,
                             _config,
                             _logBlobClient,
-                            _instanceManager);
+                            _instanceManager,
+                            _credential);
 
                         await orchestration.ProcessAsync(ct);
                     }
