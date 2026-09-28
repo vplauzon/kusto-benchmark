@@ -33,19 +33,29 @@ namespace EventHubExperimentConsole
 
         public async Task<long> FetchBatchCountAsync(DateTime start, DateTime end, CancellationToken ct)
         {
-            var startText = start.ToUtc().ToString();
-            var endText = end.ToUtc().ToString();
-            var command = $@"
+            try
+            {
+                var startText = start.ToUtc().ToString();
+                var endText = end.ToUtc().ToString();
+                var command = $@"
 .show data operations
 | where Timestamp between (datetime({startText}) .. {endText})
 | where Database == ""{_dbName}""
 | where Table == ""{_tableName}""
 | where OperationKind == ""BatchIngest""
 | count";
-            var reader = await _commandProvider.ExecuteControlCommandAsync(_dbName, command);
-            var count = (long)reader.ToDataSet().Tables[0].Rows[0][0];
+                var reader = await _commandProvider.ExecuteControlCommandAsync(_dbName, command);
+                var count = (long)reader.ToDataSet().Tables[0].Rows[0][0];
 
-            return count;
+                return count;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error fetching batch count: {ex.Message}");
+                Console.WriteLine(ex.StackTrace);
+
+                throw;
+            }
         }
     }
 }
