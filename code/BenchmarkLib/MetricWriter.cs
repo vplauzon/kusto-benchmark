@@ -97,7 +97,7 @@ namespace BenchmarkLib
                         .GroupBy(m => m.MetricName)
                         .ToDictionary(g => g.Key, g => g.Sum(m => m.MetricValue));
 
-                    Console.Write($"#metric# Timestamp='{metricBucket.Key:0}', ");
+                    Console.Write($"#metric# Timestamp='{metricBucket.Key:O}', ");
                     //  Dimensions
                     Console.Write(string.Join(
                         ", ",

@@ -146,8 +146,8 @@ namespace EventHubExperimentConsole.Orchestration
                 Console.WriteLine(
                     $"#success#  Experiment='{_experimentName}', SubExperiment='{subName}', " +
                     $"AggregateThroughputTarget={lastStepSubItem.AggregateThroughputTarget}, " +
-                    $"Start='{lastStepItem.StartTime:0}', " +
-                    $"End='{lastStepItem.EndTime:0}', BatchCount={batchCount}");
+                    $"Start='{lastStepItem.StartTime:O}', " +
+                    $"End='{lastStepItem.EndTime:O}', BatchCount={batchCount}");
 
                 var hasLastSubExperimentSucceeded = (batchCount == 0);
                 var nextThroughputTarget = new ThroughputPlanner().ComputeNextThroughput(
