@@ -39,7 +39,7 @@ namespace EventHubExperimentConsole
                 var endText = end.ToUtc().ToString();
                 var command = $@"
 .show data operations
-| where Timestamp between (datetime({startText}) .. {endText})
+| where Timestamp between (datetime({startText}) .. datetime({endText}))
 | where Database == ""{_dbName}""
 | where Table == ""{_tableName}""
 | where OperationKind == ""BatchIngest""
