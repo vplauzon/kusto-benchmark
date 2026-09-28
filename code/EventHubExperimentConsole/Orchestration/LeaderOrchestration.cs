@@ -1,6 +1,5 @@
 ﻿using EventHubExperimentConsole.Configuration;
 using EventHubExperimentConsole.Items;
-using SharpYaml;
 using System.Text.Json;
 
 namespace EventHubExperimentConsole.Orchestration
@@ -87,13 +86,9 @@ namespace EventHubExperimentConsole.Orchestration
                 var totalInstanceCount = 1 + subExperimentStepItemMap.Values.Sum(s => s.NodeCount);
 
                 Console.WriteLine($"Starting experiment step with {totalInstanceCount} nodes");
-                Console.Out.Flush();
-                TraceSubExperimentStepItemMap(subExperimentStepItemMap);
-                Console.Out.Flush();
                 await _instanceManager.SetInstanceCountAsync(totalInstanceCount, ct);
                 await _logBlobClient.AppendAsync(logItem, null, ct);
                 Console.WriteLine($"Experiment step created");
-                Console.Out.Flush();
 
                 return true;
             }
@@ -101,19 +96,6 @@ namespace EventHubExperimentConsole.Orchestration
             {
                 return false;
             }
-        }
-
-        private void TraceSubExperimentStepItemMap(
-            IDictionary<string, SubExperimentStepItem> subExperimentStepItemMap)
-        {
-            var options = new YamlSerializerOptions
-            {
-                PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-            };
-            var wrapper = new { subExperiments = subExperimentStepItemMap };
-            
-            Console.WriteLine($"Sub Experiment Steps:  " +
-                $"{YamlSerializer.Serialize(wrapper, options)}");
         }
 
         private async Task<KeyValuePair<string, SubExperimentStepItem>?> CreateSubExperimentStepItemPairAsync(
