@@ -24,6 +24,10 @@ applied uniformly to all sub-experiments in that step (to run them concurrently 
 The leader schedules an `ExperimentStepItem` containing one or more sub-experiments.
 All sub-experiments in a step run concurrently for the same duration.
 
+When the leader can no longer generate a next step, the experiment is complete.  Before exiting,
+the leader scales the Container App down to a single instance and stops the app.  This is the final
+shutdown sequence for the experiment run.
+
 When a step completes, the leader queries the related Kusto cluster to verify that
 ingestion was streaming (100% ingestion, no fallback to batching) for the full
 `SubExperimentDuration`.

@@ -15,6 +15,10 @@ running, a leader will start, otherwise, a sub-experiment will start.
 `LeaderOrchestration` plans work for sub-experiment instances.  It can change the instance count in
 *Azure Container Apps* using the `InstanceManager` class.
 
+When the leader is done scheduling work, it scales the Container App down to a single instance and
+then stops the app.  This is a final cleanup step to avoid leaving the leader active after the
+experiment completes.
+
 The way nodes communicate is through an append blob controlled by `LogBlobClient<LogItem>` (see
 next section).
 
