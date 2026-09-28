@@ -211,7 +211,8 @@ namespace EventHubExperimentConsole
                                     index,
                                     experimentStepItem.StartTime,
                                     experimentStepItem.EndTime,
-                                    subExperimentStepItem.NodeThroughputTarget),
+                                    subExperimentStepItem.NodeThroughputTarget,
+                                    subExperimentStepItem.AggregateThroughputTarget),
                                 logTag,
                                 ct);
                             return (result.Success, result.NodeItem, logTag);
@@ -228,7 +229,8 @@ namespace EventHubExperimentConsole
                                 0,
                                 experimentStepItem.StartTime,
                                 experimentStepItem.EndTime,
-                                subExperimentStepItem.NodeThroughputTarget),
+                                subExperimentStepItem.NodeThroughputTarget,
+                                subExperimentStepItem.AggregateThroughputTarget),
                             logTag,
                             ct);
                         return (result.Success, result.NodeItem, logTag);
@@ -252,8 +254,9 @@ namespace EventHubExperimentConsole
             }
             catch (OperationCanceledException)
             {   //  Shutdown requested:  still release the registration below
+                await ReleaseRegistrationAsync();
+                throw;
             }
-            await ReleaseRegistrationAsync();
         }
 
         /// <summary>

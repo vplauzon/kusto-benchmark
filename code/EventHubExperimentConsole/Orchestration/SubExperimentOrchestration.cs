@@ -43,7 +43,7 @@ namespace EventHubExperimentConsole.Orchestration
                         _experimentName,
                         _nodeItem.SubExperimentName,
                         _nodeItem.SubExperimentNodeIndex.ToString(),
-                        _nodeItem.NodeThroughputTarget.ToString()],
+                        _nodeItem.AggregateThroughputTarget.ToString()],
                     "System",
                     new Uri(_config.TemplateDbUri),
                     _config.TemplateName,

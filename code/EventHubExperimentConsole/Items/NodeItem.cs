@@ -5,5 +5,6 @@
         int SubExperimentNodeIndex,
         DateTime StartTime,
         DateTime EndTime,
-        double NodeThroughputTarget);
+        double NodeThroughputTarget,
+        double AggregateThroughputTarget);
 }
