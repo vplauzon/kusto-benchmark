@@ -17,25 +17,45 @@ namespace EventHubExperimentConsole.Orchestration
         private readonly InstanceManager _instanceManager;
         private readonly IReadOnlyDictionary<string, KustoCommandClient> _kustoCommandClients;
 
-        public LeaderOrchestration(
+        #region Constructors
+        private LeaderOrchestration(
+            string experimentName,
+            ExperimentConfig config,
+            LogBlobClient<LogItem> logBlobClient,
+            InstanceManager instanceManager,
+            IReadOnlyDictionary<string, KustoCommandClient> kustoCommandClients)
+        {
+            _experimentName = experimentName;
+            _config = config;
+            _logBlobClient = logBlobClient;
+            _instanceManager = instanceManager;
+            _kustoCommandClients = kustoCommandClients;
+        }
+
+        public static async Task<LeaderOrchestration> CreateAsync(
             string experimentName,
             ExperimentConfig config,
             LogBlobClient<LogItem> logBlobClient,
             InstanceManager instanceManager,
             TokenCredential credential)
         {
-            _experimentName = experimentName;
-            _config = config;
-            _logBlobClient = logBlobClient;
-            _instanceManager = instanceManager;
-            _kustoCommandClients = config.SubExperiments
-                .ToDictionary(
-                    subExperiment => subExperiment.SubExperimentName,
-                    subExperiment => new KustoCommandClient(
-                        new Uri(subExperiment.IngestionDbUri),
-                        subExperiment.IngestionTable,
-                        credential));
+            var kustoCommandClientPairs = await Task.WhenAll(
+                config.SubExperiments.Select(async subExperiment =>
+                    KeyValuePair.Create(
+                        subExperiment.SubExperimentName,
+                        await KustoCommandClient.CreateAsync(
+                            new Uri(subExperiment.IngestionDbUri),
+                            subExperiment.IngestionTable,
+                            credential))));
+
+            return new LeaderOrchestration(
+                experimentName,
+                config,
+                logBlobClient,
+                instanceManager,
+                kustoCommandClientPairs.ToDictionary());
         }
+        #endregion
 
         public async Task ProcessAsync(CancellationToken ct)
         {

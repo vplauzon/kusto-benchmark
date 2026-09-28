@@ -96,7 +96,7 @@ namespace EventHubExperimentConsole.Orchestration
                 {
                     if (registration.NodeItem == null)
                     {
-                        var orchestration = new LeaderOrchestration(
+                        var orchestration = await LeaderOrchestration.CreateAsync(
                             _experimentName,
                             _config,
                             _logBlobClient,
