@@ -137,6 +137,7 @@ namespace EventHubExperimentConsole.Orchestration
                     .Select(i => i.AggregateThroughputTarget)
                     .Reverse();
                 var lastStepItem = experimentStepItems[0];
+                var lastStepSubItem = lastStepItem.SubExperimentStepItemMap[subName];
                 var batchCount = await _kustoCommandClients[subName].FetchBatchCountAsync(
                     lastStepItem.StartTime,
                     lastStepItem.EndTime,
@@ -144,6 +145,7 @@ namespace EventHubExperimentConsole.Orchestration
 
                 Console.WriteLine(
                     $"#success#  Experiment='{_experimentName}', SubExperiment='{subName}', " +
+                    $"AggregateThroughputTarget='{lastStepSubItem.AggregateThroughputTarget}', " +
                     $"Start={lastStepItem.StartTime}, " +
                     $"End={lastStepItem.EndTime}, BatchCount={batchCount}");
 
