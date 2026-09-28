@@ -85,8 +85,6 @@ namespace EventHubExperimentConsole.Orchestration
 
             await Task.WhenAll(subExperimentStepItemPairTasks);
 
-            var startTime = DateTime.UtcNow.Add(BEFORE_EXPERIMENT_DURATION);
-            var endTime = startTime.Add(_config.Runtime.SubExperimentDuration);
             var subExperimentStepItemMap = subExperimentStepItemPairTasks
                 .Select(t => t.Result)
                 .Where(p => p != null)
@@ -95,12 +93,17 @@ namespace EventHubExperimentConsole.Orchestration
 
             if (subExperimentStepItemMap.Count > 0)
             {
-                var logItem = LogItem.Create(
-                    new ExperimentStepItem(startTime, endTime, subExperimentStepItemMap));
                 var totalInstanceCount = 1 + subExperimentStepItemMap.Values.Sum(s => s.NodeCount);
 
                 Console.WriteLine($"Starting experiment step with {totalInstanceCount} nodes");
                 await _instanceManager.SetInstanceCountAsync(totalInstanceCount, ct);
+
+                //  Scaling can take minutes:  the step window starts once it is done
+                var startTime = DateTime.UtcNow.Add(BEFORE_EXPERIMENT_DURATION);
+                var endTime = startTime.Add(_config.Runtime.SubExperimentDuration);
+                var logItem = LogItem.Create(
+                    new ExperimentStepItem(startTime, endTime, subExperimentStepItemMap));
+
                 await _logBlobClient.AppendAsync(logItem, null, ct);
                 Console.WriteLine($"Experiment step created");
 

@@ -123,11 +123,11 @@ namespace EventHubExperimentConsole.Orchestration
         {
             var ttlRegistrationItems = items
                 .Where(i => i.TtlRegistrationItem != null)
-                //  Keep non-expired item
-                .Where(i => !i.TtlRegistrationItem!.IsExpired)
-                //  Keep last registered item (by experiment name / node index)
+                //  Keep last appended item (by experiment name / node index)
                 .GroupBy(i => i.TtlRegistrationItem!.NodeItem)
-                .Select(g => g.OrderBy(i => i.TtlRegistrationItem!.ExpirationTime).Last());
+                .Select(g => g.Last())
+                //  Keep non-expired item:  a released registration is appended expired
+                .Where(i => !i.TtlRegistrationItem!.IsExpired);
             //  We keep all the steps
             var experimentStepItems = items
                 .Where(i => i.ExperimentStepItem != null);

@@ -12,6 +12,7 @@ namespace EventHubExperimentConsole
         private static readonly TimeSpan AWAIT_REGISTRATION_DELAY = TimeSpan.FromSeconds(5);
         private static readonly TimeSpan CLEAN_REGISTRATION_DELAY = TimeSpan.FromMinutes(5);
         private static readonly TimeSpan RENEWAL_RETRY_DELAY = TimeSpan.FromMilliseconds(200);
+        private static readonly TimeSpan RELEASE_TIMEOUT = TimeSpan.FromSeconds(5);
         private const int MAX_RENEWAL_ATTEMPTS = 10;
 
         private readonly LogBlobClient<LogItem> _logBlobClient;
@@ -245,7 +246,65 @@ namespace EventHubExperimentConsole
         async ValueTask IAsyncDisposable.DisposeAsync()
         {
             _registrationSource.TrySetResult();
-            await _backgroundTask;
+            try
+            {
+                await _backgroundTask;
+            }
+            catch (OperationCanceledException)
+            {   //  Shutdown requested:  still release the registration below
+            }
+            await ReleaseRegistrationAsync();
+        }
+
+        /// <summary>
+        /// Releases the registration so another node can take the slot right away instead of
+        /// waiting for the registration to expire.  This is done by appending an expired
+        /// registration, which compaction then removes.  The release is best effort:  it must
+        /// not block shutdown.
+        /// </summary>
+        private async Task ReleaseRegistrationAsync()
+        {
+            using var timeoutSource = new CancellationTokenSource(RELEASE_TIMEOUT);
+            var ct = timeoutSource.Token;
+
+            try
+            {
+                for (var attempt = 0; attempt != MAX_RENEWAL_ATTEMPTS; ++attempt)
+                {
+                    var allItems = await _logBlobClient.LoadAllAsync(ct);
+                    var isOwner = allItems.Result
+                        .Where(i => i.TtlRegistrationItem != null)
+                        .Select(i => i.TtlRegistrationItem!)
+                        .Any(i => i.NodeId == _nodeId && i.NodeItem == NodeItem);
+
+                    if (!isOwner)
+                    {   //  Expired or taken over:  releasing would erase another node's slot
+                        return;
+                    }
+
+                    var released = await _logBlobClient.AppendAsync(
+                        LogItem.Create(new TtlRegistrationItem(
+                            NodeItem,
+                            _nodeId,
+                            DateTime.UtcNow)),
+                        allItems.Tag,
+                        ct);
+
+                    if (released)
+                    {
+                        Console.WriteLine($"Node ({_nodeId}) released its registration");
+
+                        return;
+                    }
+                    await Task.Delay(RENEWAL_RETRY_DELAY, ct);
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine(
+                    $"WARNING:  Node ({_nodeId}) couldn't release its registration:  " +
+                    ex.Message);
+            }
         }
 
         private async Task RunBackgroundAsync(CancellationToken ct)

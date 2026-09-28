@@ -26,13 +26,29 @@ namespace EventHubExperimentConsole
         /// <summary>
         /// Sets the instance count for the application.  When the method returns, the count is set.
         /// </summary>
+        /// <remarks>
+        /// Scale settings are revision-scoped:  changing them creates a new revision, which
+        /// replaces every replica (including the caller).  The update is therefore skipped when
+        /// the count is already set.
+        /// </remarks>
         /// <param name="instanceCount">Exact number of instances to run.</param>
         /// <param name="ct">Cancellation token.</param>
-        public async Task SetInstanceCountAsync(int instanceCount, CancellationToken ct)
+        /// <returns><c>true</c> if the container app was updated.</returns>
+        public async Task<bool> SetInstanceCountAsync(int instanceCount, CancellationToken ct)
         {
             ArgumentOutOfRangeException.ThrowIfNegative(instanceCount);
 
             var response = await _containerApp.GetAsync(ct);
+            var currentScale = response.Value.Data.Template?.Scale;
+
+            if (currentScale?.MinReplicas == instanceCount
+                && currentScale?.MaxReplicas == instanceCount)
+            {
+                Console.WriteLine($"Instance count already set to {instanceCount}");
+
+                return false;
+            }
+
             var data = new ContainerAppData(response.Value.Data.Location)
             {
                 Template = new ContainerAppTemplate
@@ -46,6 +62,8 @@ namespace EventHubExperimentConsole
             };
 
             await _containerApp.UpdateAsync(WaitUntil.Completed, data, ct);
+
+            return true;
         }
 
         /// <summary>

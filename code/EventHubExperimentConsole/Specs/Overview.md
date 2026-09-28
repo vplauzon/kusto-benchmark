@@ -98,6 +98,13 @@ a non-expired `TtlRegistrationItem` from another `NodeId` covers the same slot (
 `NodeItem == null`, or the same sub-experiment name and node index otherwise).  A leader which lost
 its slot is a genuine split brain and crashes the process ; a sub-experiment node logs a warning.
 
+When a node's registration is disposed (orchestration completed or shutdown requested, e.g. on
+`SIGTERM` when *Azure Container Apps* replaces a revision), the node releases its slot by
+appending an already-expired `TtlRegistrationItem`, so a replacement node doesn't have to wait
+for the TTL.  The release is best effort (bounded by a short timeout) and is skipped if the node
+no longer owns the slot.  Compaction keeps the last appended item per slot and then drops it if
+expired, which is what makes a release effective.
+
 All times written to the log (`ExpirationTime`, step `StartTime` / `EndTime`) are UTC.
 
 ##	Orchestration run

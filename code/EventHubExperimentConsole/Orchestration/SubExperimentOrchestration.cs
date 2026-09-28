@@ -29,7 +29,7 @@ namespace EventHubExperimentConsole.Orchestration
 
             if (delayStart > TimeSpan.Zero)
             {
-                await Task.Delay(delayStart);
+                await Task.Delay(delayStart, ct);
             }
             ct.ThrowIfCancellationRequested();
             if (_nodeItem.EndTime > DateTime.UtcNow)
