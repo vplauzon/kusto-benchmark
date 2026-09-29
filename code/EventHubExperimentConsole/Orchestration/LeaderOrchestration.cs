@@ -163,6 +163,7 @@ namespace EventHubExperimentConsole.Orchestration
                     lastStepItem.EndTime,
                     ct);
 
+                await _kustoCommandClients[subName].ClearTableAsync(ct);
                 Console.WriteLine(
                     $"#success#  Experiment='{_experimentName}', SubExperiment='{subName}', " +
                     $"AggregateThroughputTarget={lastStepSubItem.AggregateThroughputTarget}, " +

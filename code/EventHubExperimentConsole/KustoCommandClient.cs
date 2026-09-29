@@ -73,5 +73,22 @@ namespace EventHubExperimentConsole
                 throw;
             }
         }
+
+        public async Task ClearTableAsync(CancellationToken ct)
+        {
+            try
+            {
+                var command = $@".clear table {_tableName} data";
+                var reader = await _commandProvider.ExecuteControlCommandAsync(_realDbName, command);
+                var success = (string)reader.ToDataSet().Tables[0].Rows[0][0];
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error clearing table: {ex.Message}");
+                Console.WriteLine(ex.StackTrace);
+
+                throw;
+            }
+        }
     }
 }
