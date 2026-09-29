@@ -47,19 +47,21 @@ namespace EventHubExperimentConsole
         }
         #endregion
 
-        public async Task<long> FetchBatchCountAsync(DateTime start, DateTime end, CancellationToken ct)
+        public async Task<long> FetchStreamingFailureCountAsync(
+            DateTime start,
+            DateTime end,
+            CancellationToken ct)
         {
             try
             {
                 var startText = start.ToUtc().ToString();
                 var endText = end.ToUtc().ToString();
                 var command = $@"
-.show data operations
-| where Timestamp between (datetime({startText}) .. datetime({endText}))
+.show streamingingestion failures
+| where LastFailureOn between (datetime({startText}) .. datetime({endText}))
 | where Database == ""{_realDbName}""
 | where Table == ""{_tableName}""
-| where OperationKind == ""BatchIngest""
-| count";
+| summarize sum(Count)";
                 var reader = await _commandProvider.ExecuteControlCommandAsync(_realDbName, command);
                 var count = (long)reader.ToDataSet().Tables[0].Rows[0][0];
 

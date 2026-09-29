@@ -158,7 +158,7 @@ namespace EventHubExperimentConsole.Orchestration
                     .Reverse();
                 var lastStepItem = experimentStepItems[0];
                 var lastStepSubItem = lastStepItem.SubExperimentStepItemMap[subName];
-                var batchCount = await _kustoCommandClients[subName].FetchBatchCountAsync(
+                var streamingFailureCount = await _kustoCommandClients[subName].FetchStreamingFailureCountAsync(
                     lastStepItem.StartTime,
                     lastStepItem.EndTime,
                     ct);
@@ -167,10 +167,10 @@ namespace EventHubExperimentConsole.Orchestration
                 Console.WriteLine(
                     $"#success#  Experiment='{_experimentName}', SubExperiment='{subName}', " +
                     $"AggregateThroughputTarget={lastStepSubItem.AggregateThroughputTarget}, " +
-                    $"Start='{lastStepItem.StartTime:O}', " +
-                    $"End='{lastStepItem.EndTime:O}', BatchCount={batchCount}");
+                    $"Start='{lastStepItem.StartTime:O}', End='{lastStepItem.EndTime:O}', " +
+                    $"StreamingFailureCount={streamingFailureCount}");
 
-                var hasLastSubExperimentSucceeded = (batchCount == 0);
+                var hasLastSubExperimentSucceeded = (streamingFailureCount == 0);
                 var nextThroughputTarget = new ThroughputPlanner().ComputeNextThroughput(
                     hasLastSubExperimentSucceeded,
                     historicalThroughputTargets,
