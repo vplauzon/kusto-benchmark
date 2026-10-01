@@ -163,15 +163,21 @@ namespace EventHubExperimentConsole.Orchestration
                     lastStepItem.StartTime,
                     lastStepItem.EndTime,
                     ct);
+                var latencyFailureCount = await _kustoCommandClients[subName].FetchLatencyFailureCountAsync(
+                    lastStepItem.StartTime,
+                    lastStepItem.EndTime,
+                    ct);
 
                 await _kustoCommandClients[subName].ClearTableAsync(ct);
                 Console.WriteLine(
                     $"#success#  Experiment='{_experimentName}', SubExperiment='{subName}', " +
                     $"AggregateThroughputTarget={lastStepSubItem.AggregateThroughputTarget}, " +
                     $"Start='{lastStepItem.StartTime:O}', End='{lastStepItem.EndTime:O}', " +
-                    $"StreamingFailureCount={streamingFailureCount}");
+                    $"StreamingFailureCount={streamingFailureCount}, " +
+                    $"LatencyFailureCount={latencyFailureCount}");
 
-                var hasLastSubExperimentSucceeded = (streamingFailureCount == 0);
+                var hasLastSubExperimentSucceeded =
+                    (streamingFailureCount == 0) && (latencyFailureCount == 0);
                 var nextThroughputTarget = new ThroughputPlanner().ComputeNextThroughput(
                     hasLastSubExperimentSucceeded,
                     historicalThroughputTargets,
