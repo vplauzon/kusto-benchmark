@@ -4,6 +4,7 @@ namespace EventHubExperimentConsole.Configuration
         string SubExperimentName,
         string IngestionDbUri,
         string IngestionTable,
+        string TimestampColumn,
         string EventHubConnectionString,
         double ThroughputTargetStart);
 }

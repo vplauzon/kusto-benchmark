@@ -76,6 +76,34 @@ namespace EventHubExperimentConsole
             }
         }
 
+        public async Task<long> FetchLatencyFailureCountAsync(
+            DateTime start,
+            DateTime end,
+            CancellationToken ct)
+        {
+            try
+            {
+                var startText = start.ToUtc().ToString();
+                var endText = end.ToUtc().ToString();
+                var command = $@"
+{_tableName}
+| project Delta = ingestion_time()-Timestamp
+| where Delta > 3s
+| count";
+                var reader = await _commandProvider.ExecuteControlCommandAsync(_realDbName, command);
+                var count = (long)reader.ToDataSet().Tables[0].Rows[0][0];
+
+                return count;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error fetching batch count: {ex.Message}");
+                Console.WriteLine(ex.StackTrace);
+
+                throw;
+            }
+        }
+
         public async Task ClearTableAsync(CancellationToken ct)
         {
             try
