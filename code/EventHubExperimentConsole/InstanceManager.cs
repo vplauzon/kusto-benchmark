@@ -39,6 +39,13 @@ namespace EventHubExperimentConsole
         public async Task<bool> SetInstanceCountAsync(int instanceCount, CancellationToken ct)
         {
             ArgumentOutOfRangeException.ThrowIfNegative(instanceCount);
+            
+            if (instanceCount > MAX_INSTANCE_COUNT)
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(instanceCount),
+                    $"Instance count cannot exceed {MAX_INSTANCE_COUNT}.");
+            }
 
             var response = await _containerApp.GetAsync(ct);
             var currentScale = response.Value.Data.Template?.Scale;
