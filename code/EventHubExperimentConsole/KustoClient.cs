@@ -96,7 +96,7 @@ namespace EventHubExperimentConsole
             var command = $@"
 {_tableName}
 | project Delta = ingestion_time()-{_timestampColumn}
-| where Delta > 3s
+| where Delta > 8s
 | count";
 
             try
