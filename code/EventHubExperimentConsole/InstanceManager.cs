@@ -11,6 +11,8 @@ namespace EventHubExperimentConsole
     /// </summary>
     internal class InstanceManager
     {
+        private const int MAX_INSTANCE_COUNT = 40;
+
         private readonly ContainerAppResource _containerApp;
 
         public InstanceManager(
