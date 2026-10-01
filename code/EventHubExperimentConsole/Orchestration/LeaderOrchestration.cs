@@ -15,7 +15,7 @@ namespace EventHubExperimentConsole.Orchestration
         private readonly ExperimentConfig _config;
         private readonly LogBlobClient<LogItem> _logBlobClient;
         private readonly InstanceManager _instanceManager;
-        private readonly IReadOnlyDictionary<string, KustoCommandClient> _kustoCommandClients;
+        private readonly IReadOnlyDictionary<string, KustoClient> _kustoClients;
 
         #region Constructors
         private LeaderOrchestration(
@@ -23,13 +23,13 @@ namespace EventHubExperimentConsole.Orchestration
             ExperimentConfig config,
             LogBlobClient<LogItem> logBlobClient,
             InstanceManager instanceManager,
-            IReadOnlyDictionary<string, KustoCommandClient> kustoCommandClients)
+            IReadOnlyDictionary<string, KustoClient> kustoClients)
         {
             _experimentName = experimentName;
             _config = config;
             _logBlobClient = logBlobClient;
             _instanceManager = instanceManager;
-            _kustoCommandClients = kustoCommandClients;
+            _kustoClients = kustoClients;
         }
 
         public static async Task<LeaderOrchestration> CreateAsync(
@@ -39,11 +39,11 @@ namespace EventHubExperimentConsole.Orchestration
             InstanceManager instanceManager,
             TokenCredential credential)
         {
-            var kustoCommandClientPairs = await Task.WhenAll(
+            var kustoClientPairs = await Task.WhenAll(
                 config.SubExperiments.Select(async subExperiment =>
                     KeyValuePair.Create(
                         subExperiment.SubExperimentName,
-                        await KustoCommandClient.CreateAsync(
+                        await KustoClient.CreateAsync(
                             new Uri(subExperiment.IngestionDbUri),
                             subExperiment.IngestionTable,
                             subExperiment.TimestampColumn,
@@ -54,7 +54,7 @@ namespace EventHubExperimentConsole.Orchestration
                 config,
                 logBlobClient,
                 instanceManager,
-                kustoCommandClientPairs.ToDictionary());
+                kustoClientPairs.ToDictionary());
         }
         #endregion
 
@@ -159,16 +159,16 @@ namespace EventHubExperimentConsole.Orchestration
                     .Reverse();
                 var lastStepItem = experimentStepItems[0];
                 var lastStepSubItem = lastStepItem.SubExperimentStepItemMap[subName];
-                var streamingFailureCount = await _kustoCommandClients[subName].FetchStreamingFailureCountAsync(
+                var streamingFailureCount = await _kustoClients[subName].FetchStreamingFailureCountAsync(
                     lastStepItem.StartTime,
                     lastStepItem.EndTime,
                     ct);
-                var latencyFailureCount = await _kustoCommandClients[subName].FetchLatencyFailureCountAsync(
+                var latencyFailureCount = await _kustoClients[subName].FetchLatencyFailureCountAsync(
                     lastStepItem.StartTime,
                     lastStepItem.EndTime,
                     ct);
 
-                await _kustoCommandClients[subName].ClearTableAsync(ct);
+                await _kustoClients[subName].ClearTableAsync(ct);
                 Console.WriteLine(
                     $"#success#  Experiment='{_experimentName}', SubExperiment='{subName}', " +
                     $"AggregateThroughputTarget={lastStepSubItem.AggregateThroughputTarget}, " +

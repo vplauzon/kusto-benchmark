@@ -10,27 +10,30 @@ using System.Text;
 
 namespace EventHubExperimentConsole
 {
-    internal class KustoCommandClient
+    internal class KustoClient
     {
         private readonly ICslAdminProvider _commandProvider;
+        private readonly ICslQueryProvider _queryProvider;
         private readonly string _realDbName;
         private readonly string _tableName;
         private readonly string _timestampColumn;
 
         #region Constructors
-        private KustoCommandClient(
+        private KustoClient(
             ICslAdminProvider commandProvider,
+            ICslQueryProvider queryProvider,
             string realDbName,
             string tableName,
             string timestampColumn)
         {
             _commandProvider = commandProvider;
+            _queryProvider = queryProvider;
             _realDbName = realDbName;
             _tableName = tableName;
             _timestampColumn = timestampColumn;
         }
 
-        public static async Task<KustoCommandClient> CreateAsync(
+        public static async Task<KustoClient> CreateAsync(
             Uri dbUri,
             string tableName,
             string timestampColumn,
@@ -41,13 +44,14 @@ namespace EventHubExperimentConsole
             var builder = new KustoConnectionStringBuilder(clusterUri.ToString())
                 .WithAadAzureTokenCredentialsAuthentication(credential);
             var commandProvider = KustoClientFactory.CreateCslAdminProvider(builder);
+            var queryProvider = KustoClientFactory.CreateCslQueryProvider(builder);
             //  In Fabric, databases have GUID as name
             var reader = await commandProvider.ExecuteControlCommandAsync(
                 dbName,
                 ".show database | project DatabaseName");
             var realDbName = (string)reader.ToDataSet().Tables[0].Rows[0][0];
 
-            return new KustoCommandClient(commandProvider, realDbName, tableName, timestampColumn);
+            return new KustoClient(commandProvider, queryProvider, realDbName, tableName, timestampColumn);
         }
         #endregion
 
@@ -97,7 +101,7 @@ namespace EventHubExperimentConsole
 
             try
             {
-                var reader = await _commandProvider.ExecuteControlCommandAsync(_realDbName, command);
+                var reader = await _queryProvider.ExecuteQueryAsync(_realDbName, command, new(), ct);
                 var count = (long)reader.ToDataSet().Tables[0].Rows[0][0];
 
                 return count;
