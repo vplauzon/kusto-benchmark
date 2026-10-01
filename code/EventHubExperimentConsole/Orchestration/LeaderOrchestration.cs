@@ -46,6 +46,7 @@ namespace EventHubExperimentConsole.Orchestration
                         await KustoCommandClient.CreateAsync(
                             new Uri(subExperiment.IngestionDbUri),
                             subExperiment.IngestionTable,
+                            subExperiment.TimestampColumn,
                             credential))));
 
             return new LeaderOrchestration(

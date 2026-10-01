@@ -15,21 +15,25 @@ namespace EventHubExperimentConsole
         private readonly ICslAdminProvider _commandProvider;
         private readonly string _realDbName;
         private readonly string _tableName;
+        private readonly string _timestampColumn;
 
         #region Constructors
         private KustoCommandClient(
             ICslAdminProvider commandProvider,
             string realDbName,
-            string tableName)
+            string tableName,
+            string timestampColumn)
         {
             _commandProvider = commandProvider;
             _realDbName = realDbName;
             _tableName = tableName;
+            _timestampColumn = timestampColumn;
         }
 
         public static async Task<KustoCommandClient> CreateAsync(
             Uri dbUri,
             string tableName,
+            string timestampColumn,
             TokenCredential credential)
         {
             var dbName = dbUri.Segments[1];
@@ -43,7 +47,7 @@ namespace EventHubExperimentConsole
                 ".show database | project DatabaseName");
             var realDbName = (string)reader.ToDataSet().Tables[0].Rows[0][0];
 
-            return new KustoCommandClient(commandProvider, realDbName, tableName);
+            return new KustoCommandClient(commandProvider, realDbName, tableName, timestampColumn);
         }
         #endregion
 
@@ -87,7 +91,7 @@ namespace EventHubExperimentConsole
                 var endText = end.ToUtc().ToString();
                 var command = $@"
 {_tableName}
-| project Delta = ingestion_time()-Timestamp
+| project Delta = ingestion_time()-{_timestampColumn}
 | where Delta > 3s
 | count";
                 var reader = await _commandProvider.ExecuteControlCommandAsync(_realDbName, command);
