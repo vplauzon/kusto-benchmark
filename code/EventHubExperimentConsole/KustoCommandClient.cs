@@ -56,16 +56,17 @@ namespace EventHubExperimentConsole
             DateTime end,
             CancellationToken ct)
         {
-            try
-            {
-                var startText = start.ToUtc().ToString();
-                var endText = end.ToUtc().ToString();
-                var command = $@"
+            var startText = start.ToUtc().ToString();
+            var endText = end.ToUtc().ToString();
+            var command = $@"
 .show streamingingestion failures
 | where LastFailureOn between (datetime({startText}) .. datetime({endText}))
 | where Database == ""{_realDbName}""
 | where Table == ""{_tableName}""
 | summarize sum(Count)";
+
+            try
+            {
                 var reader = await _commandProvider.ExecuteControlCommandAsync(_realDbName, command);
                 var count = (long)reader.ToDataSet().Tables[0].Rows[0][0];
 
@@ -73,8 +74,9 @@ namespace EventHubExperimentConsole
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error fetching batch count: {ex.Message}");
+                Console.WriteLine($"Error fetching streaming failure count: {ex.Message}");
                 Console.WriteLine(ex.StackTrace);
+                Console.WriteLine($"Command:  {command}");
 
                 throw;
             }
@@ -85,15 +87,16 @@ namespace EventHubExperimentConsole
             DateTime end,
             CancellationToken ct)
         {
-            try
-            {
-                var startText = start.ToUtc().ToString();
-                var endText = end.ToUtc().ToString();
-                var command = $@"
+            var startText = start.ToUtc().ToString();
+            var endText = end.ToUtc().ToString();
+            var command = $@"
 {_tableName}
 | project Delta = ingestion_time()-{_timestampColumn}
 | where Delta > 3s
 | count";
+
+            try
+            {
                 var reader = await _commandProvider.ExecuteControlCommandAsync(_realDbName, command);
                 var count = (long)reader.ToDataSet().Tables[0].Rows[0][0];
 
@@ -101,8 +104,9 @@ namespace EventHubExperimentConsole
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error fetching batch count: {ex.Message}");
+                Console.WriteLine($"Error fetching latency failure count: {ex.Message}");
                 Console.WriteLine(ex.StackTrace);
+                Console.WriteLine($"Command:  {command}");
 
                 throw;
             }
@@ -110,9 +114,10 @@ namespace EventHubExperimentConsole
 
         public async Task ClearTableAsync(CancellationToken ct)
         {
+            var command = $@".clear table {_tableName} data";
+
             try
             {
-                var command = $@".clear table {_tableName} data";
                 var reader = await _commandProvider.ExecuteControlCommandAsync(_realDbName, command);
                 var success = (string)reader.ToDataSet().Tables[0].Rows[0][0];
             }
@@ -120,6 +125,7 @@ namespace EventHubExperimentConsole
             {
                 Console.WriteLine($"Error clearing table: {ex.Message}");
                 Console.WriteLine(ex.StackTrace);
+                Console.WriteLine($"Command:  {command}");
 
                 throw;
             }
