@@ -24,7 +24,8 @@ namespace EventHubConsole
         private const string RECORD_COUNT = "RecordCount";
         private const string UNCOMPRESSED_SIZE = "UncompressedSize";
         private const string COMPRESSED_SIZE = "CompressedSize";
-        private const int MIN_PAYLOAD_SIZE = 4 * 1024;
+        //  This setting basically cancel the multiple-payload per event
+        private const int MIN_PAYLOAD_SIZE = 1;
         private static readonly TimeSpan PAUSE_DURATION = TimeSpan.FromMicroseconds(0.1);
 
         private readonly IImmutableList<string> _dimensionNames;
