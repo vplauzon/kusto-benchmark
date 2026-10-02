@@ -20,9 +20,11 @@ namespace EventHubConsole
         //  Hard coded constant, just to better exploit networking capacity
         private const int PARALLEL_PARTITION = 5;
         private const string BATCH_COUNT = "BatchCount";
+        private const string EVENT_COUNT = "EventCount";
         private const string RECORD_COUNT = "RecordCount";
         private const string UNCOMPRESSED_SIZE = "UncompressedSize";
         private const string COMPRESSED_SIZE = "CompressedSize";
+        private const int MIN_PAYLOAD_SIZE = 4 * 1024;
         private static readonly TimeSpan PAUSE_DURATION = TimeSpan.FromMicroseconds(0.1);
 
         private readonly IImmutableList<string> _dimensionNames;
@@ -62,6 +64,7 @@ namespace EventHubConsole
                 .Range(0, PARALLEL_PARTITION)
                 .Select(i => new MemoryStream()));
             Console.WriteLine($"Target byte per minute:  {_targetBytePerMinute}");
+            Console.WriteLine($"Target byte per second:  {targetBytePerSecond}");
             Console.WriteLine($"Target byte per batch:  {_targetBytePerBatch}");
         }
 
@@ -110,7 +113,7 @@ namespace EventHubConsole
         {
             await using var metricWriter = new MetricWriter(
                 _dimensionNames,
-                [BATCH_COUNT, RECORD_COUNT, UNCOMPRESSED_SIZE, COMPRESSED_SIZE],
+                [BATCH_COUNT, EVENT_COUNT, RECORD_COUNT, UNCOMPRESSED_SIZE, COMPRESSED_SIZE],
                 TimeSpan.FromMinutes(1));
             var watch = new Stopwatch();
             var volume = (long)0;
@@ -191,7 +194,8 @@ namespace EventHubConsole
             var eventBatch = await _eventHubProducerClient.CreateBatchAsync(ct);
             long uncompressedVolume = 0;
             long compressedVolume = 0;
-            long rowCount = 0;
+            long eventCount = 0;
+            long recordCount = 0;
             var isBatchSealed = false;
             var stopwatch = new Stopwatch();
 
@@ -202,11 +206,16 @@ namespace EventHubConsole
                     ? new GZipStream(outputStream, CompressionLevel.Fastest, true)
                     : outputStream;
                 long payloadUncompressedVolume = 0;
+                var payloadRecordCount = 0;
 
                 outputStream.SetLength(0);
                 using (var writer = new StreamWriter(payloadStream, leaveOpen: true))
                 {
-                    payloadUncompressedVolume += _generator.GenerateExpression(writer);
+                    while (payloadUncompressedVolume < MIN_PAYLOAD_SIZE)
+                    {
+                        payloadUncompressedVolume += _generator.GenerateExpression(writer);
+                        ++payloadRecordCount;
+                    }
                 }
                 isBatchSealed = !eventBatch.TryAdd(new EventData(outputStream.ToArray()));
                 if (_isOutputCompressed)
@@ -217,7 +226,8 @@ namespace EventHubConsole
                 {
                     uncompressedVolume += payloadUncompressedVolume;
                     compressedVolume += outputStream.Length;
-                    ++rowCount;
+                    recordCount += payloadRecordCount;
+                    ++eventCount;
                 }
                 else
                 {
@@ -228,7 +238,8 @@ namespace EventHubConsole
             var sendingTask = SendBatchAsync(eventBatch, outputStream);
 
             metricWriter.WriteMetric(_dimensionValues, BATCH_COUNT, 1);
-            metricWriter.WriteMetric(_dimensionValues, RECORD_COUNT, rowCount);
+            metricWriter.WriteMetric(_dimensionValues, EVENT_COUNT, eventCount);
+            metricWriter.WriteMetric(_dimensionValues, RECORD_COUNT, recordCount);
             metricWriter.WriteMetric(_dimensionValues, UNCOMPRESSED_SIZE, uncompressedVolume);
             metricWriter.WriteMetric(_dimensionValues, COMPRESSED_SIZE, compressedVolume);
 
