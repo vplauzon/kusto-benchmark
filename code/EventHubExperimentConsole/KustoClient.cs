@@ -93,7 +93,7 @@ namespace EventHubExperimentConsole
         {
             var startText = start.ToUtc().ToString();
             var endText = end.ToUtc().ToString();
-            var command = $@"
+            var query = $@"
 {_tableName}
 | project Delta = ingestion_time()-{_timestampColumn}
 | where Delta > 15s
@@ -101,7 +101,7 @@ namespace EventHubExperimentConsole
 
             try
             {
-                var reader = await _queryProvider.ExecuteQueryAsync(_realDbName, command, new(), ct);
+                var reader = await _queryProvider.ExecuteQueryAsync(_realDbName, query, new(), ct);
                 var count = (long)reader.ToDataSet().Tables[0].Rows[0][0];
 
                 return count;
@@ -110,7 +110,7 @@ namespace EventHubExperimentConsole
             {
                 Console.WriteLine($"Error fetching latency failure count: {ex.Message}");
                 Console.WriteLine(ex.StackTrace);
-                Console.WriteLine($"Command:  {command}");
+                Console.WriteLine($"Command:  {query}");
 
                 throw;
             }
@@ -118,13 +118,13 @@ namespace EventHubExperimentConsole
 
         public async Task<long> FetchRowCountAsync(CancellationToken ct)
         {
-            var command = $@"
+            var query = $@"
 {_tableName}
 | count";
 
             try
             {
-                var reader = await _commandProvider.ExecuteControlCommandAsync(_realDbName, command);
+                var reader = await _queryProvider.ExecuteQueryAsync(_realDbName, query, new(), ct);
                 var rowCount = (long)reader.ToDataSet().Tables[0].Rows[0][0];
 
                 return rowCount;
@@ -133,7 +133,7 @@ namespace EventHubExperimentConsole
             {
                 Console.WriteLine($"Error clearing table: {ex.Message}");
                 Console.WriteLine(ex.StackTrace);
-                Console.WriteLine($"Command:  {command}");
+                Console.WriteLine($"Command:  {query}");
 
                 throw;
             }
