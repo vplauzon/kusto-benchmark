@@ -116,6 +116,29 @@ namespace EventHubExperimentConsole
             }
         }
 
+        public async Task<long> FetchRowCountAsync(CancellationToken ct)
+        {
+            var command = $@"
+{_tableName}
+| count";
+
+            try
+            {
+                var reader = await _commandProvider.ExecuteControlCommandAsync(_realDbName, command);
+                var rowCount = (long)reader.ToDataSet().Tables[0].Rows[0][0];
+
+                return rowCount;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error clearing table: {ex.Message}");
+                Console.WriteLine(ex.StackTrace);
+                Console.WriteLine($"Command:  {command}");
+
+                throw;
+            }
+        }
+
         public async Task ClearTableAsync(CancellationToken ct)
         {
             var command = $@".clear table {_tableName} data";

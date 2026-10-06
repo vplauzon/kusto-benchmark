@@ -9,7 +9,9 @@ namespace EventHubExperimentConsole.Orchestration
     {
         private readonly static TimeSpan BEFORE_EXPERIMENT_DURATION = TimeSpan.FromSeconds(30);
 
-        private readonly static TimeSpan AFTER_EXPERIMENT_DURATION = TimeSpan.FromMinutes(1);
+        private readonly static TimeSpan AFTER_EXPERIMENT_DURATION = TimeSpan.FromSeconds(30);
+
+        private readonly static TimeSpan DRAINING_INGESTION_DURATION = TimeSpan.FromSeconds(40);
 
         private readonly string _experimentName;
         private readonly ExperimentConfig _config;
@@ -153,6 +155,8 @@ namespace EventHubExperimentConsole.Orchestration
             else if (experimentStepItems[0].SubExperimentStepItemMap.ContainsKey(
                 subName))
             {
+                await DrainIngestionAsync(_kustoClients[subName], ct);
+
                 var historicalThroughputTargets = experimentStepItems
                     .Select(s => s.SubExperimentStepItemMap[subName])
                     .Select(i => i.AggregateThroughputTarget)
@@ -197,6 +201,24 @@ namespace EventHubExperimentConsole.Orchestration
             else
             {
                 return null;
+            }
+        }
+
+        private async Task DrainIngestionAsync(KustoClient kustoClient, CancellationToken ct)
+        {
+            var rowCount = await kustoClient.FetchRowCountAsync(ct);
+
+            while (true)
+            {
+                await Task.Delay(DRAINING_INGESTION_DURATION, ct);
+
+                var newRowCount = await kustoClient.FetchRowCountAsync(ct);
+                
+                if (newRowCount == rowCount)
+                {
+                    break;
+                }
+                rowCount = newRowCount;
             }
         }
 
