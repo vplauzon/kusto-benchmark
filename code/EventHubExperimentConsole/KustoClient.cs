@@ -95,6 +95,7 @@ namespace EventHubExperimentConsole
             var endText = end.ToUtc().ToString();
             var query = $@"
 {_tableName}
+| where ingestion_time() between (datetime({startText}) .. datetime({endText}))
 | project Delta = ingestion_time()-{_timestampColumn}
 | where Delta > 15s
 | count";
