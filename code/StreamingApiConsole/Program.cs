@@ -1,0 +1,92 @@
+﻿using Azure.Core.Diagnostics;
+using BenchmarkLib;
+using System.Collections.Immutable;
+using System.Diagnostics;
+using System.Diagnostics.Tracing;
+
+namespace StreamingApiConsole
+{
+    internal class Program
+    {
+        public static string AssemblyVersion
+        {
+            get
+            {
+                var version = typeof(Program).Assembly.GetName().Version;
+                var versionText = version == null
+                    ? "<VERSION MISSING>"
+                    : version.ToString();
+
+                return versionText;
+            }
+        }
+
+        internal static async Task<int> Main(string[] args)
+        {
+            Console.WriteLine();
+            Console.WriteLine($"Kusto Streaming API Console {AssemblyVersion}");
+            Console.WriteLine();
+            Console.WriteLine($"Command line:  {string.Join(" ", args)}");
+            Console.Out.Flush();
+
+            try
+            {
+                return await ProgramHelper.RunAsync<CommandLineOptions>(args, RunOptionsAsync);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Exception:  {ex.Message}");
+
+                return -1;
+            }
+            finally
+            {
+                Console.WriteLine("Exiting...");
+            }
+        }
+
+        private static async Task RunOptionsAsync(CommandLineOptions options)
+        {
+            var cancellationTokenSource = new CancellationTokenSource();
+            var taskCompletionSource = new TaskCompletionSource();
+
+            using (ProgramHelper.EnsureTraceLevel(options.SourceLevel))
+            {
+                AppDomain.CurrentDomain.ProcessExit += (e, s) =>
+                {
+                    Trace.TraceInformation("Exiting process...");
+                    cancellationTokenSource.Cancel();
+                    taskCompletionSource.Task.Wait();
+                };
+                try
+                {
+                    Trace.WriteLine("");
+                    Trace.WriteLine("Parameterization:");
+                    Trace.WriteLine("");
+                    Trace.WriteLine(options.ToString());
+                    Trace.WriteLine("");
+                    await using (var orchestration = await StreamingApiOrchestration.CreateAsync(
+                        [],
+                        [],
+                        options.Authentication,
+                        new Uri(options.DbUri),
+                        options.TemplateName,
+                        new Uri(options.TableUri),
+                        options.TargetThroughput,
+                        options.IsOutputCompressed,
+                        DateTime.MaxValue,
+                        cancellationTokenSource.Token))
+                    {
+                        Trace.WriteLine("Processing...");
+                        Trace.WriteLine("");
+                        await orchestration.ProcessAsync(cancellationTokenSource.Token);
+                    }
+                }
+                finally
+                {
+                    taskCompletionSource.SetResult();
+                }
+            }
+        }
+    }
+}
