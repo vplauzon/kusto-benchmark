@@ -1,4 +1,5 @@
 ﻿using BenchmarkLib;
+using Kusto.Data.Common;
 using Kusto.Ingest.V2;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -22,7 +23,7 @@ namespace StreamingApiConsole
         private const string RECORD_COUNT = "RecordCount";
         private const string UNCOMPRESSED_SIZE = "UncompressedSize";
         private const string COMPRESSED_SIZE = "CompressedSize";
-        private static readonly TimeSpan PAUSE_DURATION = TimeSpan.FromMicroseconds(0.1);
+        private static readonly TimeSpan PAUSE_DURATION = TimeSpan.FromSeconds(0.1);
 
         private readonly IImmutableList<string> _dimensionNames;
         private readonly IImmutableList<string> _dimensionValues;
@@ -48,7 +49,7 @@ namespace StreamingApiConsole
             var targetBytePerMinute = targetMbPerMinute * 1000000d;
             var targetBytePerSecond = targetBytePerMinute / 60d;
             var fractionalBatchCount = targetBytePerSecond / BATCH_SIZE;
-            var batchCount = Math.Min(1, (int)fractionalBatchCount);
+            var batchCount = Math.Max(1, (int)fractionalBatchCount);
             var targetBytePerBatch = targetBytePerSecond / batchCount;
 
             _dimensionNames = dimensionNames.ToImmutableArray();
@@ -75,6 +76,8 @@ namespace StreamingApiConsole
             string templateName,
             Uri tableUri,
             double targetMbPerMinute,
+            DataSourceFormat dataFormat,
+            string dataMapping,
             bool isOutputCompressed,
             DateTime endTime,
             CancellationToken ct)
@@ -83,6 +86,8 @@ namespace StreamingApiConsole
             var kustoEngineClient = new KustoEngineClient(dbUri, credentials);
             var kustoStreamingIngestionClient = new KustoStreamingIngestionClient(
                 tableUri,
+                dataFormat,
+                dataMapping,
                 isOutputCompressed,
                 credentials);
             var template = await kustoEngineClient.FetchTemplateAsync(templateName, ct);
@@ -201,7 +206,7 @@ namespace StreamingApiConsole
             outputStream.SetLength(0);
             using (var writer = new StreamWriter(payloadStream, leaveOpen: true))
             {
-                while (uncompressedVolume < targetVolume)
+                while (uncompressedVolume < targetVolume && uncompressedVolume < _targetBytePerBatch)
                 {
                     uncompressedVolume += _generator.GenerateExpression(writer);
                     ++eventCount;
@@ -213,6 +218,7 @@ namespace StreamingApiConsole
                 payloadStream.Dispose();
             }
             compressedVolume += outputStream.Length;
+            outputStream.Position = 0;
 
             var sendingTask = SendBatchAsync(outputStream);
 
@@ -225,10 +231,10 @@ namespace StreamingApiConsole
             return new BatchSendingOutput(uncompressedVolume, sendingTask);
         }
 
-        private async Task SendBatchAsync(MemoryStream outputStream)
+        private async Task SendBatchAsync(MemoryStream stream)
         {
-            await _kustoStreamingIngestionClient.SendAsync(outputStream);
-            _streamQueue.Enqueue(outputStream);
+            await _kustoStreamingIngestionClient.SendAsync(stream);
+            _streamQueue.Enqueue(stream);
         }
     }
 }

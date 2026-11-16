@@ -1,4 +1,5 @@
 ﻿using CommandLine;
+using Kusto.Data.Common;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -28,8 +29,7 @@ namespace StreamingApiConsole
         public string TemplateName { get; set; } = string.Empty;
 
         [Option(
-            'd',
-            "db-uri",
+            "table-uri",
             Required = true,
             HelpText = "Set the table URI (for ingestion), e.g. https://mycluster.westus.kusto.windows.net/mydb/mytable")]
         public string TableUri { get; set; } = string.Empty;
@@ -39,6 +39,20 @@ namespace StreamingApiConsole
             Required = false,
             HelpText = "Set the throughput target, in MBs/minute")]
         public double TargetThroughput { get; set; } = 10;
+
+        [Option(
+            'f',
+            "data-format",
+            Required = false,
+            HelpText = "Ingestion data format")]
+        public DataSourceFormat DataFormat { get; set; } = DataSourceFormat.multijson;
+
+        [Option(
+            'm',
+            "data-mapping",
+            Required = false,
+            HelpText = "Data mapping reference name")]
+        public string DataMapping { get; set; } = string.Empty;
 
         [Option(
             'c',

@@ -73,6 +73,8 @@ namespace StreamingApiConsole
                         options.TemplateName,
                         new Uri(options.TableUri),
                         options.TargetThroughput,
+                        options.DataFormat,
+                        options.DataMapping,
                         options.IsOutputCompressed,
                         DateTime.MaxValue,
                         cancellationTokenSource.Token))

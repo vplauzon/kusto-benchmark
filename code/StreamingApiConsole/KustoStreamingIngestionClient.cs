@@ -1,9 +1,6 @@
 ﻿using Azure.Core;
-using Kusto.Data;
 using Kusto.Data.Common;
-using Kusto.Data.Net.Client;
 using Kusto.Ingest.V2;
-using System.Net;
 
 namespace StreamingApiConsole
 {
@@ -11,16 +8,21 @@ namespace StreamingApiConsole
     {
         private readonly string _dbName;
         private readonly string _tableName;
+        private readonly DataSourceFormat _dataFormat;
+        private readonly string _dataMapping;
         private readonly bool _isOutputCompressed;
         private readonly IIngest _ingestClient;
 
         public KustoStreamingIngestionClient(
             Uri tableUri,
+            DataSourceFormat dataFormat,
+            string dataMapping,
             bool isOutputCompressed,
             TokenCredential credentials)
         {
-            var dbName = tableUri.Segments[1];
-            var tableName = tableUri.Segments[2];
+            var parts = tableUri.PathAndQuery.Split('/');
+            var dbName = parts[1];
+            var tableName = parts[2];
             var clusterUri = new Uri($"{tableUri.Scheme}://{tableUri.Host}");
             var ingestClient = StreamingIngestClientBuilder.Create(clusterUri)
                 .WithAuthentication(credentials)
@@ -28,6 +30,8 @@ namespace StreamingApiConsole
 
             _dbName = dbName;
             _tableName = tableName;
+            _dataFormat = dataFormat;
+            _dataMapping = dataMapping;
             _isOutputCompressed = isOutputCompressed;
             _ingestClient = ingestClient;
         }
@@ -37,14 +41,21 @@ namespace StreamingApiConsole
             _ingestClient.Dispose();
         }
 
-        public async Task SendAsync(MemoryStream outputStream)
+        public async Task SendAsync(Stream stream)
         {
             var source = new StreamSource(
-                outputStream,
-                _isOutputCompressed ? DataSourceCompressionType.GZip : DataSourceCompressionType.None,
-                DataSourceFormat.json);
-            
-            await _ingestClient.IngestAsync(source, _dbName, _tableName);
+                stream,
+                _isOutputCompressed
+                ? DataSourceCompressionType.GZip
+                : DataSourceCompressionType.None,
+                _dataFormat,
+                leaveOpen: true);
+            var ingestProperties = new IngestProperties
+            {
+                IngestionMappingReference = _dataMapping
+            };
+
+            await _ingestClient.IngestAsync(source, _dbName, _tableName, ingestProperties);
         }
     }
 }
