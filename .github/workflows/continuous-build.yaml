@@ -28,6 +28,9 @@ jobs:
     name: Build ${{ matrix.component }}
     runs-on: ubuntu-latest
     environment: dev
+    concurrency:
+      group: continuous-build-${{ matrix.component }}
+      cancel-in-progress: false
     strategy:
       fail-fast: false
       matrix:
@@ -81,3 +84,23 @@ jobs:
             --image "${repo}/dev:latest" \
             --registry ${{ vars.REGISTRY_NAME }} --name ${{ vars.REGISTRY_NAME }} \
             --force
+      - name: Keep only the two newest images
+        shell: bash
+        env:
+          REGISTRY_NAME: ${{ vars.REGISTRY_NAME }}
+        run: |
+          digests=$(az acr manifest list-metadata \
+            --registry "$REGISTRY_NAME" \
+            --name "${repo}/dev" \
+            --orderby time_desc \
+            --query '[2:].digest' \
+            --output tsv)
+
+          while IFS= read -r digest; do
+            if [[ -n "$digest" ]]; then
+              az acr repository delete \
+                --name "$REGISTRY_NAME" \
+                --image "${repo}/dev@${digest}" \
+                --yes
+            fi
+          done <<< "$digests"
