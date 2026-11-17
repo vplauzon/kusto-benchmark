@@ -25,7 +25,8 @@ namespace BenchmarkLib
         #region Constructors
         public KustoEngineClient(Uri dbUri, TokenCredential credential)
         {
-            var dbName = dbUri.Segments[1];
+            var parts = dbUri.PathAndQuery.Split('/');
+            var dbName = parts[1];
             var clusterUri = new Uri($"{dbUri.Scheme}://{dbUri.Host}");
             var builder = new KustoConnectionStringBuilder(clusterUri.ToString())
                 .WithAadAzureTokenCredentialsAuthentication(credential);
