@@ -56,7 +56,8 @@ namespace EventHubExperimentConsole.Orchestration
             var folderUri = GetFolderUri(options.ConfigUri);
             var folderName = folderUri.Segments.Last();
             var logUri = GetLogUri(folderUri);
-            var credential = await CredentialFactory.CreateCredentialsAsync(options.Authentication);
+            var credential = await CredentialFactory.CreateCredentialsAsync(
+                options.Authentication);
             var config = await ExperimentConfig.LoadAsync(
                 options.ConfigUri,
                 credential,

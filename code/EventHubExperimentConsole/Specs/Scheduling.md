@@ -19,6 +19,10 @@ applied uniformly to all sub-experiments in that step (to run them concurrently 
 The leader schedules an `ExperimentStepItem` containing one or more sub-experiments.
 All sub-experiments in a step run concurrently for the same duration.
 
+When resuming an unexpired step from the log, the leader ensures the Container App is configured
+for the step's requested workers plus one leader before waiting for completion. This does not
+extend the recorded step window. Evaluation starts after the step ends and its grace period passes.
+
 When the leader can no longer generate a next step, the experiment is complete.  Before exiting,
 the leader scales the Container App down to a single instance and stops the app.  This is the final
 shutdown sequence for the experiment run.

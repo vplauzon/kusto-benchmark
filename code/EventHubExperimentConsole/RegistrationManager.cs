@@ -110,7 +110,7 @@ namespace EventHubExperimentConsole
             }
         }
 
-        public async ValueTask DisposeAsync()
+        async ValueTask IAsyncDisposable.DisposeAsync()
         {
             _stopSource.Cancel();
             try
@@ -184,7 +184,7 @@ namespace EventHubExperimentConsole
                     var items = await _logBlobClient.LoadAllAsync(ct);
                     var currentLeader = items.Result
                         .Where(i => i.NodeAssignationItem != null
-                        && i.NodeAssignationItem.NodeItem == null)
+                            && i.NodeAssignationItem.NodeItem == null)
                         .Select(i => i.NodeAssignationItem!)
                         .LastOrDefault();
                     if (currentLeader?.NodeId != NodeId)

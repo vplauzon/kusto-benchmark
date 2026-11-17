@@ -11,6 +11,10 @@ namespace EventHubExperimentConsole.Orchestration
             LogBlobClient<LogItem> logBlobClient,
             CancellationToken ct)
         {
+            Console.WriteLine(
+                $"Leader ({leaderNodeId}) monitoring node assignments every " +
+                $"{CHECK_INTERVAL.TotalSeconds} seconds");
+
             while (true)
             {
                 await AssignAvailableNodesAsync(leaderNodeId, logBlobClient, ct);
@@ -59,6 +63,8 @@ namespace EventHubExperimentConsole.Orchestration
                 .FirstOrDefault();
             if (step == null || step.EndTime <= DateTime.UtcNow)
             {
+                Console.WriteLine(
+                    $"Leader ({leaderNodeId}) assignment check: no active or upcoming step");
                 return;
             }
 
@@ -77,6 +83,12 @@ namespace EventHubExperimentConsole.Orchestration
                 .Where(pair => pair.Key != leaderNodeId && !pair.Value.IsExpired)
                 .Select(pair => pair.Key)
                 .Where(nodeId => !assignedNodeIds.Contains(nodeId)));
+            var requiredNodeCount = step.SubExperimentStepItemMap.Values.Sum(s => s.NodeCount);
+            Console.WriteLine(
+                $"Leader ({leaderNodeId}) assignment check for step '{step.StartTime:O}': " +
+                $"{slotAssignments.Count}/{requiredNodeCount} slots filled, " +
+                $"{availableNodeIds.Count} nodes available");
+
             var newAssignments = new List<LogItem>();
 
             foreach (var subExperiment in step.SubExperimentStepItemMap)
@@ -107,11 +119,21 @@ namespace EventHubExperimentConsole.Orchestration
 
             if (newAssignments.Count > 0)
             {
+                Console.WriteLine(
+                    $"Leader ({leaderNodeId}) assigning {newAssignments.Count} nodes " +
+                    $"to step '{step.StartTime:O}'");
                 var appended = await logBlobClient.AppendAsync(newAssignments, items.Tag, ct);
                 if (appended)
                 {
                     Console.WriteLine(
                         $"Assigned {newAssignments.Count} nodes to the active experiment step");
+                }
+                else
+                {
+                    Console.WriteLine(
+                        $"Leader ({leaderNodeId}) assignment append conflicted " +
+                        "with a log update; " +
+                        "will reload and retry on the next poll");
                 }
             }
         }

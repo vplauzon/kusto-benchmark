@@ -35,6 +35,10 @@ active node registrations and assigns available nodes to unfilled sub-experiment
 writes all assignments from one log snapshot in a single ETag-conditional append. On an ETag
 conflict, it reloads and retries on the next poll.
 
+The leader logs monitor startup and each assignment check, including filled slots and available
+nodes (or the absence of an active step). Assignment attempts, successful appends, and ETag
+conflicts are also logged.
+
 Workers poll every five seconds for their latest assignment. When assigned a non-expired step, a
 worker runs it and then returns to polling while continuing to renew its node registration. If a
 worker's registration expires, its slot is considered unfilled and can be assigned to another node.

@@ -89,7 +89,9 @@ namespace EventHubExperimentConsole.Orchestration
                     when (assignmentCancellation.IsCancellationRequested)
                 {
                 }
-                Console.WriteLine("Experiment complete; scaling down to one instance and stopping the container app.");
+                Console.WriteLine(
+                    "Experiment complete; scaling down to one instance and stopping " +
+                    "the container app.");
                 await _instanceManager.SetInstanceCountAsync(1, ct);
                 await _instanceManager.StopAsync(ct);
             }
@@ -117,20 +119,30 @@ namespace EventHubExperimentConsole.Orchestration
                 .OrderByDescending(i => i.StartTime)
                 .ToArray();
 
-            if (experimentStepItems.Length != 0
-                && experimentStepItems[0].EndTime > now + AFTER_EXPERIMENT_DURATION)
+            var latestStep = experimentStepItems.FirstOrDefault();
+            if (latestStep != null)
             {
-                Console.WriteLine($"Await sub experiments completion");
-                await TaskHelper.Until(
-                    experimentStepItems[0].EndTime + AFTER_EXPERIMENT_DURATION,
-                    ct);
+                if (latestStep.EndTime > now)
+                {
+                    var totalInstanceCount = GetInstanceCount(latestStep.SubExperimentStepItemMap);
+                    Console.WriteLine(
+                        $"Ensuring {totalInstanceCount} replicas for step " +
+                        $"'{latestStep.StartTime:O}'");
+                    await _instanceManager.SetInstanceCountAsync(totalInstanceCount, ct);
+                }
 
-                return true;
+                var evaluationTime = latestStep.EndTime + AFTER_EXPERIMENT_DURATION;
+                if (evaluationTime > DateTime.UtcNow)
+                {
+                    Console.WriteLine($"Awaiting step completion and grace period until " +
+                        $"{evaluationTime:O}");
+                    await TaskHelper.Until(evaluationTime, ct);
+
+                    return true;
+                }
             }
-            else
-            {
-                return await ScheduleSubExperimentStepsAsync(experimentStepItems, ct);
-            }
+
+            return await ScheduleSubExperimentStepsAsync(experimentStepItems, ct);
         }
 
         private async Task<bool> ScheduleSubExperimentStepsAsync(
@@ -151,7 +163,7 @@ namespace EventHubExperimentConsole.Orchestration
 
             if (subExperimentStepItemMap.Count > 0)
             {
-                var totalInstanceCount = 1 + subExperimentStepItemMap.Values.Sum(s => s.NodeCount);
+                var totalInstanceCount = GetInstanceCount(subExperimentStepItemMap);
 
                 Console.WriteLine($"Starting experiment step with {totalInstanceCount} nodes");
                 await _instanceManager.SetInstanceCountAsync(totalInstanceCount, ct);
@@ -171,6 +183,12 @@ namespace EventHubExperimentConsole.Orchestration
             {
                 return false;
             }
+        }
+
+        private static int GetInstanceCount(
+            IReadOnlyDictionary<string, SubExperimentStepItem> subExperimentSteps)
+        {
+            return 1 + subExperimentSteps.Values.Sum(step => step.NodeCount);
         }
 
         private async Task<KeyValuePair<string, SubExperimentStepItem>?>
@@ -198,14 +216,16 @@ namespace EventHubExperimentConsole.Orchestration
                     .Reverse();
                 var lastStepItem = experimentStepItems[0];
                 var lastStepSubItem = lastStepItem.SubExperimentStepItemMap[subName];
-                var streamingFailureCount = await _kustoClients[subName].FetchStreamingFailureCountAsync(
-                    lastStepItem.StartTime,
-                    lastStepItem.EndTime,
-                    ct);
-                var latencyFailureCount = await _kustoClients[subName].FetchLatencyFailureCountAsync(
-                    lastStepItem.StartTime,
-                    lastStepItem.EndTime,
-                    ct);
+                var streamingFailureCount =
+                    await _kustoClients[subName].FetchStreamingFailureCountAsync(
+                        lastStepItem.StartTime,
+                        lastStepItem.EndTime,
+                        ct);
+                var latencyFailureCount =
+                    await _kustoClients[subName].FetchLatencyFailureCountAsync(
+                        lastStepItem.StartTime,
+                        lastStepItem.EndTime,
+                        ct);
                 var clusterName = new Uri(subExperimentConfig.IngestionDbUri).Host.Split('.')[0];
 
                 Console.WriteLine(
