@@ -171,10 +171,11 @@ namespace EventHubExperimentConsole.Orchestration
                     lastStepItem.StartTime,
                     lastStepItem.EndTime,
                     ct);
+                var clusterName = new Uri(subExperimentConfig.IngestionDbUri).Host.Split('-')[0];
 
-                //await _kustoClients[subName].ClearTableAsync(ct);
                 Console.WriteLine(
                     $"#success#  Experiment='{_experimentName}', SubExperiment='{subName}', " +
+                    $"Cluster={clusterName}, " +
                     $"AggregateThroughputTarget={lastStepSubItem.AggregateThroughputTarget}, " +
                     $"Start='{lastStepItem.StartTime:O}', End='{lastStepItem.EndTime:O}', " +
                     $"StreamingFailureCount={streamingFailureCount}, " +
