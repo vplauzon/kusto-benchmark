@@ -50,7 +50,14 @@ namespace EventHubExperimentConsole
             var reader = await commandProvider.ExecuteControlCommandAsync(
                 string.Empty,
                 $".show databases | where PrettyName == '{dbName}' | project DatabaseName");
-            var realDbName = (string)reader.ToDataSet().Tables[0].Rows[0][0];
+            var dataTable = reader.ToDataSet().Tables[0];
+
+            if (dataTable.Rows.Count != 1)
+            {
+                throw new InvalidOperationException($"Can't find database '{dbName}' in cluster {clusterUri}");
+            }
+
+            var realDbName = (string)dataTable.Rows[0][0];
 
             return new KustoClient(commandProvider, queryProvider, realDbName, tableName, timestampColumn);
         }
