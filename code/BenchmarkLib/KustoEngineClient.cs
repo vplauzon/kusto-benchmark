@@ -28,10 +28,6 @@ namespace BenchmarkLib
             var parts = dbUri.PathAndQuery.Split('/');
             var dbName = parts[1];
             var clusterUri = new Uri($"{dbUri.Scheme}://{dbUri.Host}");
-
-            Console.WriteLine($"KustoEngineClient ; Cluster:  {clusterUri}");
-            Console.WriteLine($"KustoEngineClient ; DB:  {dbName}");
-
             var builder = new KustoConnectionStringBuilder(clusterUri.ToString())
                 .WithAadAzureTokenCredentialsAuthentication(credential);
             var queryProvider = KustoClientFactory.CreateCslQueryProvider(builder);
