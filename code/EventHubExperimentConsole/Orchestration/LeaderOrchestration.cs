@@ -171,7 +171,7 @@ namespace EventHubExperimentConsole.Orchestration
                     lastStepItem.StartTime,
                     lastStepItem.EndTime,
                     ct);
-                var clusterName = new Uri(subExperimentConfig.IngestionDbUri).Host.Split('-')[0];
+                var clusterName = new Uri(subExperimentConfig.IngestionDbUri).Host.Split('-')[1];
 
                 Console.WriteLine(
                     $"#success#  Experiment='{_experimentName}', SubExperiment='{subName}', " +
