@@ -11,7 +11,23 @@ work item; all active sub-experiments in the step run concurrently for the same 
 
 Each sub-experiment is configured by `SubExperimentConfig`, which specifies:
 
-*	`ThroughputTargetStart` — the aggregate starting throughput target
+* `ThroughputTargetStart` — the aggregate starting throughput target
+* `EventHubConnectionString` — when present, selects Event Hub ingestion
+* `StreamingApi` — when the Event Hub connection string is absent, provides the
+  streaming API settings
+
+The streaming API settings are configured as `streamingApi` in YAML:
+
+```yaml
+streamingApi:
+  dataFormat: multijson
+  dataMapping: MyDataMapping
+  isOutputCompressed: false
+```
+
+All three settings must be specified for a streaming API run. `dataMapping` may be
+an empty string when the target table does not use a mapping. The streaming API writes
+to the configured `IngestionDbUri` and `IngestionTable`.
 
 `ExperimentConfig.ThroughputPrecision` specifies the maximum acceptable gap between the
 highest successful and lowest failed aggregate throughput.
@@ -79,4 +95,4 @@ The leader converts each `AggregateThroughputTarget` into concrete execution par
    the log.
 
 Each sub-experiment node receives its assigned `NodeThroughputTarget` and produces
-that throughput to the Event Hub.
+that throughput using its configured ingestion transport.

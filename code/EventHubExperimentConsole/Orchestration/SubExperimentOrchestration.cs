@@ -1,5 +1,4 @@
-﻿using EventHubConsole;
-using EventHubExperimentConsole.Configuration;
+﻿using EventHubExperimentConsole.Configuration;
 using EventHubExperimentConsole.Items;
 
 namespace EventHubExperimentConsole.Orchestration
@@ -37,25 +36,14 @@ namespace EventHubExperimentConsole.Orchestration
                 var subExperimentConfig = _config.SubExperiments
                     .Where(c => c.SubExperimentName == _nodeItem.SubExperimentName)
                     .First();
-                await using var eventHubOrchestration = await EventHubOrchestration.CreateAsync(
-                    ["ExperimentName", "SubExperimentName", "NodeIndex", "ThroughputTarget"],
-                    [
-                        _experimentName,
-                        _nodeItem.SubExperimentName,
-                        _nodeItem.SubExperimentNodeIndex.ToString(),
-                        _nodeItem.AggregateThroughputTarget.ToString()],
-                    "System",
-                    new Uri(_config.TemplateDbUri),
-                    _config.TemplateName,
-                    subExperimentConfig.EventHubConnectionString,
-                    string.Empty,
-                    string.Empty,
-                    _nodeItem.NodeThroughputTarget,
-                    false,
-                    _nodeItem.EndTime,
+                await using var runner = await SubExperimentRunnerFactory.CreateAsync(
+                    _experimentName,
+                    _config,
+                    subExperimentConfig,
+                    _nodeItem,
                     ct);
 
-                await eventHubOrchestration.ProcessAsync(ct);
+                await runner.ProcessAsync(ct);
                 Console.WriteLine("Completed sub experiment");
             }
         }

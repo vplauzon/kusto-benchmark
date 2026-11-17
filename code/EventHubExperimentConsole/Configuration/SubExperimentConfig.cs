@@ -5,6 +5,7 @@ namespace EventHubExperimentConsole.Configuration
         string IngestionDbUri,
         string IngestionTable,
         string TimestampColumn,
-        string EventHubConnectionString,
-        double ThroughputTargetStart);
+        double ThroughputTargetStart,
+        string? EventHubConnectionString = null,
+        StreamingApiConfig? StreamingApi = null);
 }
