@@ -25,9 +25,10 @@ streamingApi:
   isOutputCompressed: false
 ```
 
-All three settings must be specified for a streaming API run. `dataMapping` may be
-an empty string when the target table does not use a mapping. The streaming API writes
-to the configured `IngestionDbUri` and `IngestionTable`.
+`dataFormat` and `dataMapping` must be specified for a streaming API run. `dataMapping`
+may be an empty string when the target table does not use a mapping.
+`isOutputCompressed` is optional and defaults to `false`. The streaming API writes to
+the configured `IngestionDbUri` and `IngestionTable`.
 
 `ExperimentConfig.ThroughputPrecision` specifies the maximum acceptable gap between the
 highest successful and lowest failed aggregate throughput.

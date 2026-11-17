@@ -86,13 +86,6 @@ namespace EventHubExperimentConsole.Orchestration
                     $"Sub-experiment '{subExperimentConfig.SubExperimentName}' must specify " +
                     "streamingApi.dataMapping (use an empty string for no mapping).");
             }
-            if (streamingConfig.IsOutputCompressed is null)
-            {
-                throw new InvalidOperationException(
-                    $"Sub-experiment '{subExperimentConfig.SubExperimentName}' must specify " +
-                    "streamingApi.isOutputCompressed.");
-            }
-
             var tableUri = new Uri(
                 $"{subExperimentConfig.IngestionDbUri.TrimEnd('/')}/" +
                 Uri.EscapeDataString(subExperimentConfig.IngestionTable));
@@ -106,7 +99,7 @@ namespace EventHubExperimentConsole.Orchestration
                 nodeItem.NodeThroughputTarget,
                 dataFormat,
                 streamingConfig.DataMapping,
-                streamingConfig.IsOutputCompressed.Value,
+                streamingConfig.IsOutputCompressed,
                 nodeItem.EndTime,
                 ct);
 
