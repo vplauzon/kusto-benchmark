@@ -175,7 +175,7 @@ namespace EventHubExperimentConsole.Orchestration
 
                 Console.WriteLine(
                     $"#success#  Experiment='{_experimentName}', SubExperiment='{subName}', " +
-                    $"Cluster={clusterName}, " +
+                    $"Cluster='{clusterName}', " +
                     $"AggregateThroughputTarget={lastStepSubItem.AggregateThroughputTarget}, " +
                     $"Start='{lastStepItem.StartTime:O}', End='{lastStepItem.EndTime:O}', " +
                     $"StreamingFailureCount={streamingFailureCount}, " +
