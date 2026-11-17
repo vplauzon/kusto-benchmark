@@ -48,8 +48,8 @@ namespace EventHubExperimentConsole
             var queryProvider = KustoClientFactory.CreateCslQueryProvider(builder);
             //  In Fabric, databases have GUID as name
             var reader = await commandProvider.ExecuteControlCommandAsync(
-                dbName,
-                ".show database | project DatabaseName");
+                string.Empty,
+                $".show databases | where PrettyName == '{dbName}' | project DatabaseName");
             var realDbName = (string)reader.ToDataSet().Tables[0].Rows[0][0];
 
             return new KustoClient(commandProvider, queryProvider, realDbName, tableName, timestampColumn);
