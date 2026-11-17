@@ -1,429 +1,216 @@
 ﻿using EventHubExperimentConsole.Items;
-using System;
-using System.Collections.Generic;
-using System.Collections.Immutable;
-using System.Text;
 
 namespace EventHubExperimentConsole
 {
-    internal class RegistrationManager : IAsyncDisposable
+    internal sealed class RegistrationManager : IAsyncDisposable
     {
         private static readonly TimeSpan REGISTRATION_TTL = TimeSpan.FromSeconds(30);
-        private static readonly TimeSpan AWAIT_REGISTRATION_DELAY = TimeSpan.FromSeconds(5);
+        private static readonly TimeSpan HEARTBEAT_INTERVAL = TimeSpan.FromSeconds(15);
+        private static readonly TimeSpan ASSIGNMENT_POLL_INTERVAL = TimeSpan.FromSeconds(5);
         private static readonly TimeSpan CLEAN_REGISTRATION_DELAY = TimeSpan.FromMinutes(5);
-        private static readonly TimeSpan RENEWAL_RETRY_DELAY = TimeSpan.FromMilliseconds(200);
-        private static readonly TimeSpan RELEASE_TIMEOUT = TimeSpan.FromSeconds(5);
-        private const int MAX_RENEWAL_ATTEMPTS = 10;
 
         private readonly LogBlobClient<LogItem> _logBlobClient;
-        private readonly Guid _nodeId;
-        private readonly TaskCompletionSource _registrationSource = new();
+        private readonly CancellationTokenSource _stopSource = new();
         private readonly Task _backgroundTask;
-        private string _currentLogTag = string.Empty;
+        private volatile bool _isLeader;
+        private NodeItem? _lastAssignment;
 
-        #region Constructor
         private RegistrationManager(
             LogBlobClient<LogItem> logBlobClient,
             Guid nodeId,
-            NodeItem? nodeItem,
-            string initialLogTag,
-            CancellationToken ct)
+            bool isLeader)
         {
             _logBlobClient = logBlobClient;
-            _nodeId = nodeId;
-            NodeItem = nodeItem;
-            _currentLogTag = initialLogTag;
-            _backgroundTask = RunBackgroundAsync(ct);
+            NodeId = nodeId;
+            _isLeader = isLeader;
+            _backgroundTask = RunBackgroundAsync(_stopSource.Token);
         }
 
-        #region Register
+        public Guid NodeId { get; }
+
+        public bool IsLeader => _isLeader;
+
         public static async Task<RegistrationManager> RegisterAsync(
             LogBlobClient<LogItem> logBlobClient,
             Guid nodeId,
             CancellationToken ct)
         {
-            while (true)
-            {
-                var result = await TryRegisterAsync(logBlobClient, nodeId, ct);
-
-                if (result.Success)
-                {
-                    var nodeItem = result.NodeItem;
-
-                    if (nodeItem != null)
-                    {
-                        Console.WriteLine(
-                            $"Node ({nodeId}) registration with " +
-                            $"{nodeItem.SubExperimentName}:{nodeItem.SubExperimentNodeIndex}" +
-                            $"({nodeItem.NodeThroughputTarget})");
-                    }
-                    else
-                    {
-                        Console.WriteLine($"Node ({nodeId}) registration with leader");
-                    }
-
-                    return new RegistrationManager(
-                        logBlobClient,
-                        nodeId,
-                        result.NodeItem,
-                        result.LogTag,
-                        ct);
-                }
-                else
-                {
-                    Console.WriteLine($"Node ({nodeId}) registration is delayed");
-
-                    await Task.Delay(AWAIT_REGISTRATION_DELAY, ct);
-                }
-            }
-        }
-
-        private static async Task<(bool Success, NodeItem? NodeItem, string LogTag)> TryRegisterAsync(
-            LogBlobClient<LogItem> logBlobClient,
-            Guid nodeId,
-            CancellationToken ct)
-        {
-            var allItemsResult = await logBlobClient.LoadAllAsync(ct);
-            var leaderResult = await TryRegisterLeaderAsync(
-                logBlobClient,
-                allItemsResult.Tag,
-                allItemsResult.Result,
-                nodeId,
-                ct);
-
-            if (leaderResult.Success)
-            {
-                return leaderResult;
-            }
-            else
-            {
-                var nonLeaderResult = await TryRegisterNonLeaderAsync(
-                    logBlobClient,
-                    allItemsResult.Tag,
-                    allItemsResult.Result,
-                    nodeId,
-                    ct);
-
-                if (nonLeaderResult.Success)
-                {
-                    return nonLeaderResult;
-                }
-                else
-                {
-                    Console.WriteLine($"No registration available for node ({nodeId})");
-
-                    return (false, null, allItemsResult.Tag);
-                }
-            }
-        }
-
-        private static async Task<(bool Success, NodeItem? NodeItem, string LogTag)> TryRegisterLeaderAsync(
-            LogBlobClient<LogItem> logBlobClient,
-            string logTag,
-            IImmutableList<LogItem> allItems,
-            Guid nodeId,
-            CancellationToken ct)
-        {
-            var ttlRegistrationItems = allItems
-                .Where(r => r.TtlRegistrationItem != null)
-                .Select(r => r.TtlRegistrationItem!);
-            var leaderRegistrationItem = ttlRegistrationItems
-                .FirstOrDefault(i => i.NodeItem == null);
-
-            if (leaderRegistrationItem != null && !leaderRegistrationItem.IsExpired)
-            {
-                return (false, null, logTag);
-            }
-            else
-            {
-                var result = await TryRegisterNodeAsync(logBlobClient, nodeId, null, logTag, ct);
-                return (result.Success, result.NodeItem, logTag);
-            }
-        }
-
-        private static async Task<(bool Success, NodeItem? NodeItem, string LogTag)> TryRegisterNodeAsync(
-            LogBlobClient<LogItem> logBlobClient,
-            Guid nodeId,
-            NodeItem? nodeItem,
-            string logTag,
-            CancellationToken ct)
-        {
-            var success = await logBlobClient.AppendAsync(
-                LogItem.Create(new TtlRegistrationItem(
-                    nodeItem,
+            await logBlobClient.AppendAsync(
+                LogItem.Create(new NodeRegistrationItem(
                     nodeId,
                     DateTime.UtcNow.Add(REGISTRATION_TTL))),
-                logTag,
+                null,
                 ct);
 
-            return (success, nodeItem, logTag);
-        }
-
-        private static async Task<(bool Success, NodeItem? NodeItem, string LogTag)> TryRegisterNonLeaderAsync(
-            LogBlobClient<LogItem> logBlobClient,
-            string logTag,
-            IImmutableList<LogItem> allItems,
-            Guid nodeId,
-            CancellationToken ct)
-        {
-            var ttlRegistrationItemGroups = allItems
-                .Where(r => r.TtlRegistrationItem?.NodeItem != null)
-                .Select(r => r.TtlRegistrationItem!)
-                .GroupBy(t => t.NodeItem!.SubExperimentName)
-                .ToDictionary(g => g.Key, g => g.Where(t => !t.IsExpired).ToArray());
-            var now = DateTime.UtcNow;
-            var experimentStepItems = allItems
-                .Where(r => r.ExperimentStepItem != null)
-                .Select(r => r.ExperimentStepItem!)
-                //  Only active or upcoming steps can be registered against
-                .Where(s => s.EndTime > now)
-                .OrderByDescending(s => s.StartTime);
-
-            foreach (var experimentStepItem in experimentStepItems)
+            while (true)
             {
-                foreach (var pair in experimentStepItem.SubExperimentStepItemMap)
+                var items = await logBlobClient.LoadAllAsync(ct);
+                var registrations = GetLatestRegistrations(items.Result);
+                var hasLiveLeader = items.Result
+                    .Where(i => i.NodeAssignationItem != null
+                        && i.NodeAssignationItem.NodeItem == null)
+                    .Select(i => i.NodeAssignationItem!)
+                    .Where(i => registrations.TryGetValue(i.NodeId, out var registration)
+                        && !registration.IsExpired)
+                    .Any();
+
+                if (!hasLiveLeader)
                 {
-                    var subExperimentName = pair.Key;
-                    var subExperimentStepItem = pair.Value;
-
-                    if (ttlRegistrationItemGroups.TryGetValue(
-                        subExperimentName,
-                        out var registrationItems))
-                    {   //  Some registration present
-                        //  Let's find the first one available
-                        var takenIndexes = registrationItems
-                            .Select(i => i.NodeItem!.SubExperimentNodeIndex);
-                        //  We take-1 because first-or-default would return 0 if none is available
-                        var indexAvailable = Enumerable.Range(0, subExperimentStepItem.NodeCount)
-                            .Except(takenIndexes)
-                            .Take(1)
-                            .ToArray();
-
-                        if (indexAvailable.Length == 1)
-                        {   //  One index is available
-                            var index = indexAvailable[0];
-
-                            var result = await TryRegisterNodeAsync(
-                                logBlobClient,
-                                nodeId,
-                                new NodeItem(
-                                    subExperimentName,
-                                    index,
-                                    experimentStepItem.StartTime,
-                                    experimentStepItem.EndTime,
-                                    subExperimentStepItem.NodeThroughputTarget,
-                                    subExperimentStepItem.AggregateThroughputTarget),
-                                logTag,
-                                ct);
-                            return (result.Success, result.NodeItem, logTag);
-                        }
-                    }
-                    else
-                    {   //  No registration available for that sub experiment:
-                        //  let's register the first one
-                        var result = await TryRegisterNodeAsync(
-                            logBlobClient,
-                            nodeId,
-                            new NodeItem(
-                                subExperimentName,
-                                0,
-                                experimentStepItem.StartTime,
-                                experimentStepItem.EndTime,
-                                subExperimentStepItem.NodeThroughputTarget,
-                                subExperimentStepItem.AggregateThroughputTarget),
-                            logTag,
-                            ct);
-                        return (result.Success, result.NodeItem, logTag);
+                    var claimed = await logBlobClient.AppendAsync(
+                        LogItem.Create(new NodeAssignationItem(null, nodeId)),
+                        items.Tag,
+                        ct);
+                    if (claimed)
+                    {
+                        Console.WriteLine($"Node ({nodeId}) registered as leader");
+                        return new RegistrationManager(logBlobClient, nodeId, true);
                     }
                 }
+                else
+                {
+                    Console.WriteLine($"Node ({nodeId}) registered as available");
+                    return new RegistrationManager(logBlobClient, nodeId, false);
+                }
+
+                await Task.Delay(ASSIGNMENT_POLL_INTERVAL, ct);
             }
-
-            return (false, null, logTag);
         }
-        #endregion
-        #endregion
 
-        public NodeItem? NodeItem { get; }
-
-        async ValueTask IAsyncDisposable.DisposeAsync()
+        public async Task<NodeItem?> WaitForAssignmentAsync(CancellationToken ct)
         {
-            _registrationSource.TrySetResult();
+            while (true)
+            {
+                ct.ThrowIfCancellationRequested();
+                var items = await _logBlobClient.LoadAllAsync(ct);
+                var assignment = items.Result
+                    .Where(i => i.NodeAssignationItem?.NodeId == NodeId)
+                    .Select(i => i.NodeAssignationItem!)
+                    .LastOrDefault();
+                var nodeItem = assignment?.NodeItem;
+
+                if (nodeItem != null
+                    && nodeItem.EndTime > DateTime.UtcNow
+                    && nodeItem != _lastAssignment)
+                {
+                    _lastAssignment = nodeItem;
+                    Console.WriteLine(
+                        $"Node ({NodeId}) assigned to " +
+                        $"{nodeItem.SubExperimentName}:{nodeItem.SubExperimentNodeIndex}");
+                    return nodeItem;
+                }
+
+                if (await TryClaimLeadershipAsync(ct))
+                {
+                    _isLeader = true;
+                    Console.WriteLine($"Node ({NodeId}) took over as leader");
+                    return null;
+                }
+
+                await Task.Delay(ASSIGNMENT_POLL_INTERVAL, ct);
+            }
+        }
+
+        public async ValueTask DisposeAsync()
+        {
+            _stopSource.Cancel();
             try
             {
                 await _backgroundTask;
             }
-            catch (OperationCanceledException)
-            {   //  Shutdown requested:  still release the registration below
-                await ReleaseRegistrationAsync();
-                throw;
+            catch (OperationCanceledException) when (_stopSource.IsCancellationRequested)
+            {
+            }
+            finally
+            {
+                _stopSource.Dispose();
             }
         }
 
-        /// <summary>
-        /// Releases the registration so another node can take the slot right away instead of
-        /// waiting for the registration to expire.  This is done by appending an expired
-        /// registration, which compaction then removes.  The release is best effort:  it must
-        /// not block shutdown.
-        /// </summary>
-        private async Task ReleaseRegistrationAsync()
+        private async Task<bool> TryClaimLeadershipAsync(CancellationToken ct)
         {
-            using var timeoutSource = new CancellationTokenSource(RELEASE_TIMEOUT);
-            var ct = timeoutSource.Token;
-
-            try
+            var items = await _logBlobClient.LoadAllAsync(ct);
+            var registrations = GetLatestRegistrations(items.Result);
+            var hasLiveLeader = items.Result
+                .Where(i => i.NodeAssignationItem != null
+                    && i.NodeAssignationItem.NodeItem == null)
+                .Select(i => i.NodeAssignationItem!)
+                .Where(i => registrations.TryGetValue(i.NodeId, out var registration)
+                    && !registration.IsExpired)
+                .Any();
+            if (hasLiveLeader)
             {
-                for (var attempt = 0; attempt != MAX_RENEWAL_ATTEMPTS; ++attempt)
-                {
-                    var allItems = await _logBlobClient.LoadAllAsync(ct);
-                    var isOwner = allItems.Result
-                        .Where(i => i.TtlRegistrationItem != null)
-                        .Select(i => i.TtlRegistrationItem!)
-                        .Any(i => i.NodeId == _nodeId && i.NodeItem == NodeItem);
-
-                    if (!isOwner)
-                    {   //  Expired or taken over:  releasing would erase another node's slot
-                        return;
-                    }
-
-                    var released = await _logBlobClient.AppendAsync(
-                        LogItem.Create(new TtlRegistrationItem(
-                            NodeItem,
-                            _nodeId,
-                            DateTime.UtcNow)),
-                        allItems.Tag,
-                        ct);
-
-                    if (released)
-                    {
-                        Console.WriteLine($"Node ({_nodeId}) released its registration");
-
-                        return;
-                    }
-                    await Task.Delay(RENEWAL_RETRY_DELAY, ct);
-                }
+                return false;
             }
-            catch (Exception ex)
-            {
-                Console.Error.WriteLine(
-                    $"WARNING:  Node ({_nodeId}) couldn't release its registration:  " +
-                    ex.Message);
-            }
+
+            return await _logBlobClient.AppendAsync(
+                LogItem.Create(new NodeAssignationItem(null, NodeId)),
+                items.Tag,
+                ct);
         }
 
         private async Task RunBackgroundAsync(CancellationToken ct)
         {
-            var lastClean = DateTime.MinValue;
-
-            while (!_registrationSource.Task.IsCompleted)
+            try
             {
-                if (NodeItem == null && lastClean.Add(CLEAN_REGISTRATION_DELAY) < DateTime.UtcNow)
-                {   //  Compaction rewrites the blob:  the cached tag is stale afterwards
-                    await _logBlobClient.CompactAsync(ct);
-                    lastClean = DateTime.UtcNow;
-                }
-                ct.ThrowIfCancellationRequested();
-                //  Pause
-                await Task.WhenAny(Task.Delay(REGISTRATION_TTL / 2, ct), _registrationSource.Task);
-                ct.ThrowIfCancellationRequested();
-                if (!_registrationSource.Task.IsCompleted)
-                {   //  Update registration
-                    await RenewRegistrationAsync(ct);
-                }
+                await RunHeartbeatLoopAsync(ct);
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                var message = $"Node ({NodeId}) lost its registration heartbeat: {ex.Message}";
+                Console.Error.WriteLine(message);
+                Environment.FailFast(message, ex);
             }
         }
 
-        /// <summary>
-        /// Renews the registration of this node.
-        /// An e-tag mismatch simply means another node appended to the log (another node
-        /// renewing its own registration, a new experiment step, a compaction, etc.):  it is
-        /// not a sign of split brain, so the renewal is retried against the current state.
-        /// Split brain is detected by inspecting the log itself:  another node holding a
-        /// non-expired registration on the same slot.
-        /// </summary>
-        private async Task RenewRegistrationAsync(CancellationToken ct)
+        private async Task RunHeartbeatLoopAsync(CancellationToken ct)
         {
-            for (var attempt = 0; attempt != MAX_RENEWAL_ATTEMPTS; ++attempt)
+            var lastClean = DateTime.UtcNow;
+            while (true)
             {
-                var allItems = await _logBlobClient.LoadAllAsync(ct);
-
-                _currentLogTag = allItems.Tag;
-                DetectSlotTakeOver(allItems.Result);
-
-                var renewalSucceeded = await _logBlobClient.AppendAsync(
-                    LogItem.Create(new TtlRegistrationItem(
-                        NodeItem,
-                        _nodeId,
+                await Task.Delay(HEARTBEAT_INTERVAL, ct);
+                await _logBlobClient.AppendAsync(
+                    LogItem.Create(new NodeRegistrationItem(
+                        NodeId,
                         DateTime.UtcNow.Add(REGISTRATION_TTL))),
-                    _currentLogTag,
+                    null,
                     ct);
 
-                if (renewalSucceeded)
+                if (IsLeader)
                 {
-                    if (NodeItem != null)
+                    var items = await _logBlobClient.LoadAllAsync(ct);
+                    var currentLeader = items.Result
+                        .Where(i => i.NodeAssignationItem != null
+                        && i.NodeAssignationItem.NodeItem == null)
+                        .Select(i => i.NodeAssignationItem!)
+                        .LastOrDefault();
+                    if (currentLeader?.NodeId != NodeId)
                     {
-                        Console.WriteLine(
-                            $"Node ({_nodeId}) renewed registration with " +
-                            $"{NodeItem.SubExperimentName}:{NodeItem.SubExperimentNodeIndex}" +
-                            $"({NodeItem.NodeThroughputTarget})");
+                        Environment.FailFast(
+                            $"Leader node ({NodeId}) lost its assignment to " +
+                            $"({currentLeader?.NodeId.ToString() ?? "none"}).");
                     }
-                    else
+
+                    if (lastClean.Add(CLEAN_REGISTRATION_DELAY) < DateTime.UtcNow)
                     {
-                        Console.WriteLine($"Node ({_nodeId}) renewed registration with leader");
+                        await _logBlobClient.CompactAsync(ct);
+                        lastClean = DateTime.UtcNow;
                     }
-
-                    return;
-                }
-                //  Concurrent append:  reload and retry against the new state
-                await Task.Delay(RENEWAL_RETRY_DELAY, ct);
-            }
-
-            throw new InvalidOperationException(
-                $"Node ({_nodeId}) couldn't renew its registration after " +
-                $"{MAX_RENEWAL_ATTEMPTS} attempts");
-        }
-
-        private void DetectSlotTakeOver(IImmutableList<LogItem> allItems)
-        {
-            var conflictingItem = allItems
-                .Where(i => i.TtlRegistrationItem != null)
-                .Select(i => i.TtlRegistrationItem!)
-                .Where(i => !i.IsExpired)
-                .Where(i => i.NodeId != _nodeId)
-                .FirstOrDefault(i => IsSameSlot(i.NodeItem, NodeItem));
-
-            if (conflictingItem != null)
-            {
-                if (NodeItem == null)
-                {
-                    var message =
-                        $"FATAL: Node ({_nodeId}) lost leader lease due to split brain " +
-                        $"condition.  Node ({conflictingItem.NodeId}) has taken over the " +
-                        $"leader role.  Crashing the process.";
-
-                    Console.Error.WriteLine(message);
-                    Environment.FailFast(message);
-                }
-                else
-                {
-                    Console.Error.WriteLine(
-                        $"WARNING:  Node ({_nodeId}) registration on " +
-                        $"{NodeItem.SubExperimentName}:{NodeItem.SubExperimentNodeIndex} " +
-                        $"is also held by node ({conflictingItem.NodeId})");
                 }
             }
         }
 
-        private static bool IsSameSlot(NodeItem? left, NodeItem? right)
+        private static Dictionary<Guid, NodeRegistrationItem>
+            GetLatestRegistrations(IEnumerable<LogItem> items)
         {
-            if (left == null || right == null)
-            {
-                return left == null && right == null;
-            }
-            else
-            {
-                return left.SubExperimentName == right.SubExperimentName
-                    && left.SubExperimentNodeIndex == right.SubExperimentNodeIndex;
-            }
+            return items
+                .Where(i => i.NodeRegistrationItem != null)
+                .Select(i => i.NodeRegistrationItem!)
+                .GroupBy(i => i.NodeId)
+                .ToDictionary(g => g.Key, g => g.Last());
         }
     }
 }

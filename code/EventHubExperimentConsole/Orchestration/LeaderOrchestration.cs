@@ -13,6 +13,7 @@ namespace EventHubExperimentConsole.Orchestration
 
         private readonly static TimeSpan DRAINING_INGESTION_DURATION = TimeSpan.FromSeconds(40);
 
+        private readonly Guid _leaderNodeId;
         private readonly string _experimentName;
         private readonly ExperimentConfig _config;
         private readonly LogBlobClient<LogItem> _logBlobClient;
@@ -25,8 +26,10 @@ namespace EventHubExperimentConsole.Orchestration
             ExperimentConfig config,
             LogBlobClient<LogItem> logBlobClient,
             InstanceManager instanceManager,
-            IReadOnlyDictionary<string, KustoClient> kustoClients)
+            IReadOnlyDictionary<string, KustoClient> kustoClients,
+            Guid leaderNodeId)
         {
+            _leaderNodeId = leaderNodeId;
             _experimentName = experimentName;
             _config = config;
             _logBlobClient = logBlobClient;
@@ -39,7 +42,8 @@ namespace EventHubExperimentConsole.Orchestration
             ExperimentConfig config,
             LogBlobClient<LogItem> logBlobClient,
             InstanceManager instanceManager,
-            TokenCredential credential)
+            TokenCredential credential,
+            Guid leaderNodeId)
         {
             var kustoClientPairs = await Task.WhenAll(
                 config.SubExperiments.Select(async subExperiment =>
@@ -56,20 +60,51 @@ namespace EventHubExperimentConsole.Orchestration
                 config,
                 logBlobClient,
                 instanceManager,
-                kustoClientPairs.ToDictionary());
+                kustoClientPairs.ToDictionary(),
+                leaderNodeId);
         }
         #endregion
 
         public async Task ProcessAsync(CancellationToken ct)
         {
-            while (await ProcessStepAsync(ct))
-            {
-                ct.ThrowIfCancellationRequested();
-            }
+            using var assignmentCancellation = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            var assignmentTask = NodeAssignmentCoordinator.MonitorAsync(
+                _leaderNodeId,
+                _logBlobClient,
+                assignmentCancellation.Token);
 
-            Console.WriteLine("Experiment complete; scaling down to one instance and stopping the container app.");
-            await _instanceManager.SetInstanceCountAsync(1, ct);
-            await _instanceManager.StopAsync(ct);
+            try
+            {
+                while (await ProcessStepAsync(ct))
+                {
+                    ct.ThrowIfCancellationRequested();
+                }
+
+                assignmentCancellation.Cancel();
+                try
+                {
+                    await assignmentTask;
+                }
+                catch (OperationCanceledException)
+                    when (assignmentCancellation.IsCancellationRequested)
+                {
+                }
+                Console.WriteLine("Experiment complete; scaling down to one instance and stopping the container app.");
+                await _instanceManager.SetInstanceCountAsync(1, ct);
+                await _instanceManager.StopAsync(ct);
+            }
+            finally
+            {
+                assignmentCancellation.Cancel();
+                try
+                {
+                    await assignmentTask;
+                }
+                catch (OperationCanceledException)
+                    when (assignmentCancellation.IsCancellationRequested)
+                {
+                }
+            }
         }
 
         private async Task<bool> ProcessStepAsync(CancellationToken ct)
@@ -214,7 +249,7 @@ namespace EventHubExperimentConsole.Orchestration
                 await Task.Delay(DRAINING_INGESTION_DURATION, ct);
 
                 var newRowCount = await kustoClient.FetchRowCountAsync(ct);
-                
+
                 if (newRowCount == rowCount)
                 {
                     break;

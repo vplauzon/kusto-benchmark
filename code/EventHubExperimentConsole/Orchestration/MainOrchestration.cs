@@ -94,26 +94,48 @@ namespace EventHubExperimentConsole.Orchestration
                 await using (var registration =
                     await RegistrationManager.RegisterAsync(_logBlobClient, _nodeId, ct))
                 {
-                    if (registration.NodeItem == null)
+                    if (registration.IsLeader)
                     {
                         var orchestration = await LeaderOrchestration.CreateAsync(
                             _experimentName,
                             _config,
                             _logBlobClient,
                             _instanceManager,
-                            _credential);
+                            _credential,
+                            _nodeId);
 
                         await orchestration.ProcessAsync(ct);
                     }
                     else
                     {
-                        var orchestration = new SubExperimentOrchestration(
-                            _experimentName,
-                            _config,
-                            _logBlobClient,
-                            registration.NodeItem);
+                        while (!ct.IsCancellationRequested)
+                        {
+                            var nodeItem = await registration.WaitForAssignmentAsync(ct);
+                            if (registration.IsLeader)
+                            {
+                                var leaderOrchestration = await LeaderOrchestration.CreateAsync(
+                                    _experimentName,
+                                    _config,
+                                    _logBlobClient,
+                                    _instanceManager,
+                                    _credential,
+                                    _nodeId);
+                                await leaderOrchestration.ProcessAsync(ct);
+                                break;
+                            }
+                            if (nodeItem == null)
+                            {
+                                continue;
+                            }
 
-                        await orchestration.ProcessAsync(ct);
+                            var orchestration = new SubExperimentOrchestration(
+                                _experimentName,
+                                _config,
+                                _logBlobClient,
+                                nodeItem);
+
+                            await orchestration.ProcessAsync(ct);
+                        }
                     }
                 }
             }
@@ -121,18 +143,26 @@ namespace EventHubExperimentConsole.Orchestration
 
         private static IEnumerable<LogItem> CompactLogItems(IEnumerable<LogItem> items)
         {
-            var ttlRegistrationItems = items
-                .Where(i => i.TtlRegistrationItem != null)
-                //  Keep last appended item (by experiment name / node index)
-                .GroupBy(i => i.TtlRegistrationItem!.NodeItem)
+            var itemArray = items.ToArray();
+            var nodeRegistrationItems = itemArray
+                .Where(i => i.NodeRegistrationItem != null)
+                .GroupBy(i => i.NodeRegistrationItem!.NodeId)
                 .Select(g => g.Last())
-                //  Keep non-expired item:  a released registration is appended expired
-                .Where(i => !i.TtlRegistrationItem!.IsExpired);
-            //  We keep all the steps
-            var experimentStepItems = items
+                .Where(i => !i.NodeRegistrationItem!.IsExpired)
+                .ToArray();
+            var activeNodeIds = nodeRegistrationItems
+                .Select(i => i.NodeRegistrationItem!.NodeId)
+                .ToHashSet();
+            var nodeAssignationItems = itemArray
+                .Where(i => i.NodeAssignationItem != null)
+                .GroupBy(i => i.NodeAssignationItem!.NodeId)
+                .Select(g => g.Last())
+                .Where(i => activeNodeIds.Contains(i.NodeAssignationItem!.NodeId));
+            var experimentStepItems = itemArray
                 .Where(i => i.ExperimentStepItem != null);
 
-            return ttlRegistrationItems
+            return nodeRegistrationItems
+                .Concat(nodeAssignationItems)
                 .Concat(experimentStepItems);
         }
     }
