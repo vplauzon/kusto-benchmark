@@ -49,7 +49,7 @@ namespace StreamingApiConsole
             var targetBytePerMinute = targetMbPerMinute * 1000000d;
             var targetBytePerSecond = targetBytePerMinute / 60d;
             var fractionalBatchCount = targetBytePerSecond / BATCH_SIZE;
-            var batchCount = Math.Max(1, (int)fractionalBatchCount);
+            var batchCount = (int)fractionalBatchCount + 1;
             var targetBytePerBatch = targetBytePerSecond / batchCount;
 
             _dimensionNames = dimensionNames.ToImmutableArray();
