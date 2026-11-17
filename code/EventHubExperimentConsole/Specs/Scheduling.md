@@ -9,29 +9,7 @@ An experiment is a collection of independent sub-experiments, each targeting a d
 Kusto cluster. The leader runs experiments by scheduling steps. A step is a time-bounded
 work item; all active sub-experiments in the step run concurrently for the same duration.
 
-Each sub-experiment is configured by `SubExperimentConfig`, which specifies:
-
-* `ThroughputTargetStart` — the aggregate starting throughput target
-* `EventHubConnectionString` — when present, selects Event Hub ingestion
-* `StreamingApi` — when the Event Hub connection string is absent, provides the
-  streaming API settings
-
-The streaming API settings are configured as `streamingApi` in YAML:
-
-```yaml
-streamingApi:
-  dataFormat: multijson
-  dataMapping: MyDataMapping
-  isOutputCompressed: false
-```
-
-`dataFormat` and `dataMapping` must be specified for a streaming API run. `dataMapping`
-may be an empty string when the target table does not use a mapping.
-`isOutputCompressed` is optional and defaults to `false`. The streaming API writes to
-the configured `IngestionDbUri` and `IngestionTable`.
-
-`ExperimentConfig.ThroughputPrecision` specifies the maximum acceptable gap between the
-highest successful and lowest failed aggregate throughput.
+Each sub-experiment is configured by `SubExperimentConfig`.
 
 Each step has a duration specified by `ExperimentConfig.SubExperimentDuration`,
 applied uniformly to all sub-experiments in that step (to run them concurrently and save time).
