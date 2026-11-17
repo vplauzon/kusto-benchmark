@@ -60,8 +60,9 @@ namespace StreamingApiConsole
             _targetBytePerBatch = Math.Max(1d, targetBytePerBatch);
             _isOutputCompressed = isOutputCompressed;
             _endTime = endTime;
+            //  We provision twice as much streams as prescribed in case delays are introduced
             _streamQueue = new(Enumerable
-                .Range(0, batchCount)
+                .Range(0, 2 * batchCount)
                 .Select(i => new MemoryStream()));
             Console.WriteLine($"Target byte per minute:  {_targetBytePerMinute}");
             Console.WriteLine($"Target byte per second:  {targetBytePerSecond}");
