@@ -24,6 +24,11 @@ namespace StreamingApiConsole
             var dbName = parts[1];
             var tableName = parts[2];
             var clusterUri = new Uri($"{tableUri.Scheme}://{tableUri.Host}");
+
+            Console.WriteLine($"KustoStreamingIngestionClient ; Cluster:  {clusterUri}");
+            Console.WriteLine($"KustoStreamingIngestionClient ; DB:  {dbName}");
+            Console.WriteLine($"KustoStreamingIngestionClient ; Table:  {tableName}");
+
             var ingestClient = StreamingIngestClientBuilder.Create(clusterUri)
                 .WithAuthentication(credentials)
                 .Build();
