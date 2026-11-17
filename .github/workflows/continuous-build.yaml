@@ -1,0 +1,83 @@
+name: continuous-build
+
+on:
+  workflow_dispatch:
+    inputs:
+      component:
+        description: Component to build and publish
+        type: choice
+        required: true
+        default: experiment
+        options:
+          - experiment
+          - event-hub
+          - ingestor
+          - query
+  push:
+    paths:
+      - 'code/**'
+    branches:
+      - main
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  build:
+    name: Build ${{ matrix.component }}
+    runs-on: ubuntu-latest
+    environment: dev
+    strategy:
+      fail-fast: false
+      matrix:
+        component:
+          - ${{ inputs.component || 'experiment' }}
+    env:
+      folder: ${{ fromJSON('{"experiment":"EventHubExperiment","event-hub":"EventHub","ingestor":"Ingestor","query":"Query"}')[matrix.component] }}
+      repo: ${{ matrix.component }}
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup .NET Core
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.x
+
+      - name: Install dependencies
+        run: dotnet restore code
+      - name: Patch version
+        id: patch-version
+        run: python3 deployment/patch-version.py code/${folder}Console/${folder}Console.csproj ${{ github.run_number }}
+      - name: Output full version
+        shell: bash
+        run: |
+          echo "Full version: ${{ steps.patch-version.outputs.full-version }}"
+      - name: .NET Build Console
+        run: dotnet build code/${folder}Console --configuration Release --no-restore
+      - name: Copy binaries
+        run: |
+          mkdir bin
+          cp -r code/${folder}Console/bin/Release/net*/* bin
+      - name: Copy entrypoint
+        if: matrix.component == 'experiment' || matrix.component == 'event-hub'
+        run: cp deployment/docker-${repo}/entrypoint.sh bin
+
+      - name: Log into Azure
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Docker Build / Push container
+        run: |
+          az acr build --image "${repo}/dev:${{ steps.patch-version.outputs.full-version }}" \
+            --registry ${{ vars.REGISTRY_NAME }} \
+            --file deployment/docker-${repo}/Dockerfile bin
+      - name: Docker tag latest
+        run: |
+          az acr import --source "${repo}/dev:${{ steps.patch-version.outputs.full-version }}" \
+            --image "${repo}/dev:latest" \
+            --registry ${{ vars.REGISTRY_NAME }} --name ${{ vars.REGISTRY_NAME }} \
+            --force

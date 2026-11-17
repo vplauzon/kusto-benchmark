@@ -41,6 +41,23 @@ namespace StreamingApiConsole
             _ingestClient.Dispose();
         }
 
+        public async Task WarmupAsync(CancellationToken ct)
+        {   //  Do an empty ingestion to warm up the streaming ingestion client
+            var stream = new MemoryStream();
+
+            using(var writer = new StreamWriter(stream, leaveOpen: true))
+            {
+                await writer.WriteAsync("{}");
+            }
+            stream.Position = 0;
+            var source = new StreamSource(
+                stream,
+                DataSourceCompressionType.None,
+                DataSourceFormat.json);
+
+            await _ingestClient.IngestAsync(source, _dbName, _tableName);
+        }
+
         public async Task SendAsync(Stream stream)
         {
             var source = new StreamSource(

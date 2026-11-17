@@ -94,6 +94,9 @@ namespace StreamingApiConsole
             var generator = await ExpressionGenerator.CreateAsync(template, kustoEngineClient, ct);
 
             Console.WriteLine($"Template:  {template}");
+            Console.WriteLine("Warming up...");
+            await kustoStreamingIngestionClient.WarmupAsync(ct);
+            Console.WriteLine("Warmed up");
 
             return new StreamingApiOrchestration(
                 dimensionNames,
