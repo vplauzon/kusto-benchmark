@@ -61,8 +61,9 @@ namespace EventHubConsole
             _targetBytePerBatch = Math.Max(1d, targetBytePerBatch);
             _isOutputCompressed = isOutputCompressed;
             _endTime = endTime;
+            //  We provide 4 times as much parallel partitions to cover for the peaks
             _streamQueue = new(Enumerable
-                .Range(0, PARALLEL_PARTITION)
+                .Range(0, 4 * PARALLEL_PARTITION)
                 .Select(i => new MemoryStream()));
             Console.WriteLine($"Target byte per minute:  {_targetBytePerMinute}");
             Console.WriteLine($"Target byte per second:  {targetBytePerSecond}");
