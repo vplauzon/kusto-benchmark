@@ -1,5 +1,6 @@
 ﻿using BenchmarkLib;
 using Kusto.Data.Common;
+using Kusto.Data.Exceptions;
 using Kusto.Ingest.V2;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -241,14 +242,24 @@ namespace StreamingApiConsole
             long uncompressedVolume,
             long compressedVolume)
         {
-            await _kustoStreamingIngestionClient.SendAsync(stream);
+            try
+            {
+                await _kustoStreamingIngestionClient.SendAsync(stream);
 
-            metricWriter.WriteMetric(_dimensionValues, BATCH_COUNT, 1);
-            metricWriter.WriteMetric(_dimensionValues, EVENT_COUNT, eventCount);
-            metricWriter.WriteMetric(_dimensionValues, RECORD_COUNT, eventCount);
-            metricWriter.WriteMetric(_dimensionValues, UNCOMPRESSED_SIZE, uncompressedVolume);
-            metricWriter.WriteMetric(_dimensionValues, COMPRESSED_SIZE, compressedVolume);
-
+                metricWriter.WriteMetric(_dimensionValues, BATCH_COUNT, 1);
+                metricWriter.WriteMetric(_dimensionValues, EVENT_COUNT, eventCount);
+                metricWriter.WriteMetric(_dimensionValues, RECORD_COUNT, eventCount);
+                metricWriter.WriteMetric(_dimensionValues, UNCOMPRESSED_SIZE, uncompressedVolume);
+                metricWriter.WriteMetric(_dimensionValues, COMPRESSED_SIZE, compressedVolume);
+            }
+            catch (KustoRequestThrottledException ex)
+            {
+                Console.WriteLine($"Streaming throttling with '{ex.Message}'");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Streaming exception {ex.GetType().FullName} with '{ex.Message}'");
+            }
             _streamQueue.Enqueue(stream);
         }
     }
