@@ -147,7 +147,7 @@ namespace StreamingApiConsole
                 }
                 else
                 {
-                    await Task.Delay(PAUSE_DURATION, ct);
+                    await Task.WhenAny(_sendTaskQueue);
                 }
             }
         }
