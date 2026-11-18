@@ -130,18 +130,25 @@ namespace EventHubConsole
                 var deltaVolume = expectedVolume - volume;
                 var deltaTime = DateTime.Now - lastBatch;
 
-                if (deltaVolume > _targetBytePerBatch && TryDequeueStream(out var stream))
+                if (deltaVolume > _targetBytePerBatch)
                 {
-                    var sendingOutput =
-                        await SendDataAsync(deltaVolume, stream, metricWriter, ct);
+                    if (TryDequeueStream(out var stream))
+                    {
+                        var sendingOutput =
+                            await SendDataAsync(deltaVolume, stream, metricWriter, ct);
 
-                    volume += sendingOutput.VolumeSent;
-                    lastBatch = DateTime.Now;
-                    _sendTaskQueue.Enqueue(sendingOutput.SendingTask);
+                        volume += sendingOutput.VolumeSent;
+                        lastBatch = DateTime.Now;
+                        _sendTaskQueue.Enqueue(sendingOutput.SendingTask);
+                    }
+                    else
+                    {
+                        await Task.WhenAny(_sendTaskQueue);
+                    }
                 }
                 else
                 {
-                    await Task.WhenAny(_sendTaskQueue);
+                    await Task.Delay(PAUSE_DURATION, ct);
                 }
             }
         }
