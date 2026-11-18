@@ -89,6 +89,11 @@ namespace EventHubConsole
                 : new EventHubProducerClient(eventHubConnectionString);
 
             Console.WriteLine($"Template:  {template}");
+            Console.WriteLine("Warming up Event Hubs...");
+            using (var batch = await eventHubProducerClient.CreateBatchAsync(ct))
+            {
+            }
+            Console.WriteLine("Event Hubs warmed up");
 
             return new EventHubOrchestration(
                 dimensionNames,
