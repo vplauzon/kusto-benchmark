@@ -18,7 +18,7 @@ namespace EventHubConsole
         #endregion
 
         //  Hard coded constant, just to better exploit networking capacity
-        private const int PARALLEL_PARTITION = 5;
+        private const int PARALLEL_PARTITION = 10;
         private const string BATCH_COUNT = "BatchCount";
         private const string EVENT_COUNT = "EventCount";
         private const string RECORD_COUNT = "RecordCount";
