@@ -33,7 +33,6 @@ namespace EventHubConsole
         private readonly ExpressionGenerator _generator;
         private readonly EventHubProducerClient _eventHubProducerClient;
         private readonly double _targetBytePerMinute;
-        private readonly double _targetBytePerBatch;
         private readonly bool _isOutputCompressed;
         private readonly DateTime _endTime;
         private readonly ConcurrentQueue<MemoryStream> _streamQueue;
@@ -58,7 +57,6 @@ namespace EventHubConsole
             _generator = generator;
             _eventHubProducerClient = eventHubProducerClient;
             _targetBytePerMinute = targetBytePerMinute;
-            _targetBytePerBatch = Math.Max(1d, targetBytePerBatch);
             _isOutputCompressed = isOutputCompressed;
             _endTime = endTime;
             _streamQueue = new(Enumerable
@@ -66,7 +64,6 @@ namespace EventHubConsole
                 .Select(i => new MemoryStream()));
             Console.WriteLine($"Target byte per minute:  {_targetBytePerMinute}");
             Console.WriteLine($"Target byte per second:  {targetBytePerSecond}");
-            Console.WriteLine($"Target byte per batch:  {_targetBytePerBatch}");
         }
 
         public static async Task<EventHubOrchestration> CreateAsync(
@@ -130,12 +127,11 @@ namespace EventHubConsole
                 var deltaVolume = expectedVolume - volume;
                 var deltaTime = DateTime.Now - lastBatch;
 
-                if (deltaVolume > _targetBytePerBatch)
+                if (deltaVolume > 0)
                 {
                     if (TryDequeueStream(out var stream))
                     {
-                        var sendingOutput =
-                            await SendDataAsync(deltaVolume, stream, metricWriter, ct);
+                        var sendingOutput = await SendDataAsync(stream, metricWriter, ct);
 
                         volume += sendingOutput.VolumeSent;
                         lastBatch = DateTime.Now;
@@ -151,6 +147,8 @@ namespace EventHubConsole
                     await Task.Delay(PAUSE_DURATION, ct);
                 }
             }
+
+            await Task.WhenAll(_sendTaskQueue);
         }
 
         private bool TryDequeueStream([NotNullWhen(true)] out MemoryStream? stream)
@@ -194,7 +192,6 @@ namespace EventHubConsole
         }
 
         private async Task<BatchSendingOutput> SendDataAsync(
-            long targetVolume,
             MemoryStream outputStream,
             MetricWriter metricWriter,
             CancellationToken ct)
@@ -208,7 +205,7 @@ namespace EventHubConsole
             var stopwatch = new Stopwatch();
 
             stopwatch.Start();
-            while (!isBatchSealed && uncompressedVolume < targetVolume)
+            while (!isBatchSealed)
             {
                 Stream payloadStream = _isOutputCompressed
                     ? new GZipStream(outputStream, CompressionLevel.Fastest, true)
@@ -237,13 +234,25 @@ namespace EventHubConsole
                     recordCount += payloadRecordCount;
                     ++eventCount;
                 }
-                else
-                {
-                    //Console.WriteLine($"Can't add event #{rowCount} to batch");
-                }
             }
 
-            var sendingTask = SendBatchAsync(eventBatch, outputStream);
+            var sendingTask = SendBatchAsync(
+                eventBatch, outputStream, metricWriter, eventCount, recordCount,
+                uncompressedVolume, compressedVolume);
+
+            return new BatchSendingOutput(uncompressedVolume, sendingTask);
+        }
+
+        private async Task SendBatchAsync(
+            EventDataBatch eventBatch,
+            MemoryStream outputStream,
+            MetricWriter metricWriter,
+            long eventCount,
+            long recordCount,
+            long uncompressedVolume,
+            long compressedVolume)
+        {
+            await _eventHubProducerClient.SendAsync(eventBatch);
 
             metricWriter.WriteMetric(_dimensionValues, BATCH_COUNT, 1);
             metricWriter.WriteMetric(_dimensionValues, EVENT_COUNT, eventCount);
@@ -251,12 +260,6 @@ namespace EventHubConsole
             metricWriter.WriteMetric(_dimensionValues, UNCOMPRESSED_SIZE, uncompressedVolume);
             metricWriter.WriteMetric(_dimensionValues, COMPRESSED_SIZE, compressedVolume);
 
-            return new BatchSendingOutput(uncompressedVolume, sendingTask);
-        }
-
-        private async Task SendBatchAsync(EventDataBatch eventBatch, MemoryStream outputStream)
-        {
-            await _eventHubProducerClient.SendAsync(eventBatch);
             _streamQueue.Enqueue(outputStream);
             eventBatch.Dispose();
         }

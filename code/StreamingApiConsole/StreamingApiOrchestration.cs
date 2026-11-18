@@ -30,7 +30,6 @@ namespace StreamingApiConsole
         private readonly ExpressionGenerator _generator;
         private readonly KustoStreamingIngestionClient _kustoStreamingIngestionClient;
         private readonly double _targetBytePerMinute;
-        private readonly double _targetBytePerBatch;
         private readonly bool _isOutputCompressed;
         private readonly DateTime _endTime;
         private readonly ConcurrentQueue<MemoryStream> _streamQueue;
@@ -57,7 +56,6 @@ namespace StreamingApiConsole
             _generator = generator;
             _kustoStreamingIngestionClient = kustoStreamingIngestionClient;
             _targetBytePerMinute = targetBytePerMinute;
-            _targetBytePerBatch = Math.Max(1d, targetBytePerBatch);
             _isOutputCompressed = isOutputCompressed;
             _endTime = endTime;
             //  We provision twice as much streams as prescribed in case delays are introduced
@@ -66,7 +64,6 @@ namespace StreamingApiConsole
                 .Select(i => new MemoryStream()));
             Console.WriteLine($"Target byte per minute:  {_targetBytePerMinute}");
             Console.WriteLine($"Target byte per second:  {targetBytePerSecond}");
-            Console.WriteLine($"Target byte per batch:  {_targetBytePerBatch}");
         }
 
         public static async Task<StreamingApiOrchestration> CreateAsync(
@@ -136,12 +133,11 @@ namespace StreamingApiConsole
                 var deltaVolume = expectedVolume - volume;
                 var deltaTime = DateTime.Now - lastBatch;
 
-                if (deltaVolume > _targetBytePerBatch)
+                if (deltaVolume > 0)
                 {
                     if (TryDequeueStream(out var stream))
                     {
-                        var sendingOutput =
-                            await SendDataAsync(deltaVolume, stream, metricWriter, ct);
+                        var sendingOutput = await SendDataAsync(stream, metricWriter, ct);
 
                         volume += sendingOutput.VolumeSent;
                         lastBatch = DateTime.Now;
@@ -157,6 +153,8 @@ namespace StreamingApiConsole
                     await Task.Delay(PAUSE_DURATION, ct);
                 }
             }
+
+            await Task.WhenAll(_sendTaskQueue);
         }
 
         private bool TryDequeueStream([NotNullWhen(true)] out MemoryStream? stream)
@@ -200,7 +198,6 @@ namespace StreamingApiConsole
         }
 
         private async Task<BatchSendingOutput> SendDataAsync(
-            long targetVolume,
             MemoryStream outputStream,
             MetricWriter metricWriter,
             CancellationToken ct)
@@ -217,7 +214,7 @@ namespace StreamingApiConsole
             outputStream.SetLength(0);
             using (var writer = new StreamWriter(payloadStream, leaveOpen: true))
             {
-                while (uncompressedVolume < targetVolume && uncompressedVolume < _targetBytePerBatch)
+                while (uncompressedVolume < BATCH_SIZE)
                 {
                     uncompressedVolume += _generator.GenerateExpression(writer);
                     ++eventCount;
@@ -231,7 +228,20 @@ namespace StreamingApiConsole
             compressedVolume += outputStream.Length;
             outputStream.Position = 0;
 
-            var sendingTask = SendBatchAsync(outputStream);
+            var sendingTask = SendBatchAsync(
+                outputStream, metricWriter, eventCount, uncompressedVolume, compressedVolume);
+
+            return new BatchSendingOutput(uncompressedVolume, sendingTask);
+        }
+
+        private async Task SendBatchAsync(
+            MemoryStream stream,
+            MetricWriter metricWriter,
+            long eventCount,
+            long uncompressedVolume,
+            long compressedVolume)
+        {
+            await _kustoStreamingIngestionClient.SendAsync(stream);
 
             metricWriter.WriteMetric(_dimensionValues, BATCH_COUNT, 1);
             metricWriter.WriteMetric(_dimensionValues, EVENT_COUNT, eventCount);
@@ -239,12 +249,6 @@ namespace StreamingApiConsole
             metricWriter.WriteMetric(_dimensionValues, UNCOMPRESSED_SIZE, uncompressedVolume);
             metricWriter.WriteMetric(_dimensionValues, COMPRESSED_SIZE, compressedVolume);
 
-            return new BatchSendingOutput(uncompressedVolume, sendingTask);
-        }
-
-        private async Task SendBatchAsync(MemoryStream stream)
-        {
-            await _kustoStreamingIngestionClient.SendAsync(stream);
             _streamQueue.Enqueue(stream);
         }
     }

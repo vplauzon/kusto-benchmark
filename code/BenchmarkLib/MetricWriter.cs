@@ -57,6 +57,8 @@ namespace BenchmarkLib
                 await Task.WhenAny(Task.Delay(_publishPeriod), completionTask);
                 remainMetrics = PublishMetrics(remainMetrics, completionTask.IsCompleted);
             }
+
+            PublishMetrics(remainMetrics, true);
         }
 
         private IImmutableList<Metric> PublishMetrics(
