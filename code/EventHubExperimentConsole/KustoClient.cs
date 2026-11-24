@@ -61,8 +61,9 @@ namespace EventHubExperimentConsole
             var command = $@"
 .show streamingingestion failures
 | where LastFailureOn between (datetime({startText}) .. datetime({endText}))
-| where Database == ""{_realDbName}""
-| where Table == ""{_tableName}""
+//  We removed those since the 'real db name' isn't set properly
+//| where Database == ""{_realDbName}""
+//| where Table == ""{_tableName}""
 | summarize sum(Count)";
 
             try
