@@ -108,7 +108,7 @@ namespace EventHubExperimentConsole
             {
                 Console.WriteLine($"Error fetching latency failure count: {ex.Message}");
                 Console.WriteLine(ex.StackTrace);
-                Console.WriteLine($"Command:  {query}");
+                Console.WriteLine($"Query:  {query}");
 
                 throw;
             }
@@ -131,24 +131,26 @@ namespace EventHubExperimentConsole
             {
                 Console.WriteLine($"Error clearing table: {ex.Message}");
                 Console.WriteLine(ex.StackTrace);
-                Console.WriteLine($"Command:  {query}");
+                Console.WriteLine($"Query:  {query}");
 
                 throw;
             }
         }
 
-        public async Task ClearTableAsync(CancellationToken ct)
+        public async Task ForceRowStoreSealAsync(CancellationToken ct)
         {
-            var command = $@".clear table {_tableName} data";
+            var command = $@"
+.seal table {_tableName} with (flush='true')";
 
             try
             {
-                var reader = await _commandProvider.ExecuteControlCommandAsync(_realDbName, command);
-                var success = (string)reader.ToDataSet().Tables[0].Rows[0][0];
+                var reader =
+                    await _commandProvider.ExecuteControlCommandAsync(_realDbName, command);
+                var ds = reader.ToDataSet();
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error clearing table: {ex.Message}");
+                Console.WriteLine($"Error sealing table: {ex.Message}");
                 Console.WriteLine(ex.StackTrace);
                 Console.WriteLine($"Command:  {command}");
 

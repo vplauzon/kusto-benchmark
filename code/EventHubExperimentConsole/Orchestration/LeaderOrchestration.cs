@@ -132,6 +132,7 @@ namespace EventHubExperimentConsole.Orchestration
                 }
 
                 var evaluationTime = latestStep.EndTime + AFTER_EXPERIMENT_DURATION;
+
                 if (evaluationTime > DateTime.UtcNow)
                 {
                     Console.WriteLine($"Awaiting step completion and grace period until " +
@@ -209,6 +210,7 @@ namespace EventHubExperimentConsole.Orchestration
                 subName))
             {
                 await DrainIngestionAsync(_kustoClients[subName], ct);
+                await _kustoClients[subName].ForceRowStoreSealAsync(ct);
 
                 var historicalThroughputTargets = experimentStepItems
                     .Select(s => s.SubExperimentStepItemMap[subName])
