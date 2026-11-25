@@ -221,11 +221,12 @@ namespace EventHubExperimentConsole.Orchestration
                         lastStepItem.StartTime,
                         lastStepItem.EndTime,
                         ct);
-                var latencyFailureCount =
-                    await _kustoClients[subName].FetchLatencyFailureCountAsync(
+                var latencyFailureCount = subExperimentConfig.IsEventHubSubExperiment
+                    ? await _kustoClients[subName].FetchLatencyFailureCountAsync(
                         lastStepItem.StartTime,
                         lastStepItem.EndTime,
-                        ct);
+                        ct)
+                    : 0L;
                 var clusterName = new Uri(subExperimentConfig.IngestionDbUri).Host.Split('.')[0];
 
                 Console.WriteLine(
