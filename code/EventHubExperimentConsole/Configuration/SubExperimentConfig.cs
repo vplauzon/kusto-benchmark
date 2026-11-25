@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace EventHubExperimentConsole.Configuration
 {
     internal record SubExperimentConfig(
@@ -7,5 +9,10 @@ namespace EventHubExperimentConsole.Configuration
         string TimestampColumn,
         double ThroughputTargetStart,
         string? EventHubConnectionString = null,
-        StreamingApiConfig? StreamingApi = null);
+        StreamingApiConfig? StreamingApi = null)
+    {
+        [JsonIgnore]
+        public bool IsEventHubSubExperiment =>
+            !string.IsNullOrWhiteSpace(EventHubConnectionString);
+    }
 }

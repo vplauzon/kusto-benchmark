@@ -47,7 +47,7 @@ namespace EventHubExperimentConsole.Orchestration
                 nodeItem.AggregateThroughputTarget.ToString()
             };
 
-            if (!string.IsNullOrWhiteSpace(subExperimentConfig.EventHubConnectionString))
+            if (subExperimentConfig.IsEventHubSubExperiment)
             {
                 var orchestration = await EventHubOrchestration.CreateAsync(
                     dimensionNames,
@@ -55,7 +55,7 @@ namespace EventHubExperimentConsole.Orchestration
                     "System",
                     new Uri(experimentConfig.TemplateDbUri),
                     experimentConfig.TemplateName,
-                    subExperimentConfig.EventHubConnectionString,
+                    subExperimentConfig.EventHubConnectionString!,
                     string.Empty,
                     string.Empty,
                     nodeItem.NodeThroughputTarget,
