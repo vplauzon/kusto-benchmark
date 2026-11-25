@@ -206,10 +206,12 @@ namespace EventHubExperimentConsole.Orchestration
                     subName,
                     CreateSubExperimentStepItem(subExperimentConfig.ThroughputTargetStart));
             }
-            else if (experimentStepItems[0].SubExperimentStepItemMap.ContainsKey(
-                subName))
+            else if (experimentStepItems[0].SubExperimentStepItemMap.ContainsKey(subName))
             {
-                await DrainIngestionAsync(_kustoClients[subName], ct);
+                if (subExperimentConfig.IsEventHubSubExperiment)
+                {
+                    await DrainIngestionAsync(_kustoClients[subName], ct);
+                }
                 await _kustoClients[subName].ForceRowStoreSealAsync(ct);
 
                 var historicalThroughputTargets = experimentStepItems
