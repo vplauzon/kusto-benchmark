@@ -163,7 +163,7 @@ namespace EventHubExperimentConsole
         {
             var command = $@"
 .show cluster
-| summarize NodeCount=count(), CoreCount=take_any(ProcessorCount)
+| summarize NodeCount=count(), CoreCount=tolong(take_any(ProcessorCount))
 ";
 
             try
