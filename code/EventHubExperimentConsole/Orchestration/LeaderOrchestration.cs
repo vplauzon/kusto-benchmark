@@ -232,10 +232,12 @@ namespace EventHubExperimentConsole.Orchestration
                         ct)
                     : 0L;
                 var clusterName = new Uri(subExperimentConfig.IngestionDbUri).Host.Split('.')[0];
+                (var nodeCount, var coreCount) =
+                    await _kustoClients[subName].GetClusterConfigurationAsync(ct);
 
                 Console.WriteLine(
                     $"#success#  Experiment='{_experimentName}', SubExperiment='{subName}', " +
-                    $"Cluster='{clusterName}', " +
+                    $"Cluster='{clusterName}', NodeCount={nodeCount}, CoreCount={coreCount}, " +
                     $"AggregateThroughputTarget={lastStepSubItem.AggregateThroughputTarget}, " +
                     $"Start='{lastStepItem.StartTime:O}', End='{lastStepItem.EndTime:O}', " +
                     $"StreamingFailureCount={streamingFailureCount}, " +

@@ -157,5 +157,33 @@ namespace EventHubExperimentConsole
                 throw;
             }
         }
+
+        public async Task<(long NodeCount, long CoreCount)> GetClusterConfigurationAsync(
+            CancellationToken ct)
+        {
+            var command = $@"
+.show cluster
+| summarize NodeCount=count(), CoreCount=take_any(ProcessorCount)
+";
+
+            try
+            {
+                var reader =
+                    await _commandProvider.ExecuteControlCommandAsync(_realDbName, command);
+                var row = reader.ToDataSet().Tables[0].Rows[0];
+                var nodeCount = (long)row["NodeCount"];
+                var coreCount = (long)row["CoreCount"];
+                
+                return (nodeCount, coreCount);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error sealing table: {ex.Message}");
+                Console.WriteLine(ex.StackTrace);
+                Console.WriteLine($"Command:  {command}");
+
+                throw;
+            }
+        }
     }
 }
